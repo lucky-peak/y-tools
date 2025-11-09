@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>YAML → .properties 转换工具</title>
+  <script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"></script>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      background: #f8f9fa;
+      margin: 0;
+      padding: 20px;
+    }
+    h1 {
+      text-align: center;
+    }
+    textarea {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 10px;
+      font-family: monospace;
+      font-size: 14px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      min-height: 300px;
+      resize: vertical;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+    .btns {
+      margin-top: 10px;
+      display: flex;
+      gap: 10px;
+    }
+    button {
+      background: #007bff;
+      color: white;
+      border: none;
+      padding: 6px 14px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #0056b3;
+    }
+    .error {
+      color: #c00;
+      margin-top: 6px;
+    }
+    .note {
+      margin-top: 20px;
+      background: #fff;
+      padding: 10px;
+      border-radius: 6px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>YAML → .properties 转换工具</h1>
+
+  <p style="text-align:center;color:#666">在左侧粘贴 YAML，点击“转换”即可生成 .properties 格式。</p>
+
+  <div class="grid">
+    <div>
+      <label><strong>YAML 输入：</strong></label>
+      <textarea id="yamlInput" placeholder="app:\n  name: myapp\n  nested:\n    key: value"></textarea>
+      <div class="btns">
+        <button onclick="convert()">转换</button>
+        <button onclick="clearAll()" style="background:#6c757d;">清空</button>
+      </div>
+      <div id="error" class="error"></div>
+    </div>
+    <div>
+      <label><strong>.properties 输出：</strong></label>
+      <textarea id="propsOutput" readonly></textarea>
+      <div class="btns">
+        <button onclick="copyOutput()" style="background:#28a745;">复制</button>
+        <button onclick="downloadOutput()" style="background:#6610f2;">下载 .properties</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="note">
+    <strong>说明：</strong>
+    <ul>
+      <li>对象会被展开为 <code>key.subkey=value</code> 格式。</li>
+      <li>数组键为 <code>key[0]=value</code>、<code>key[1]=value</code>。</li>
+      <li>多行文本换行符会转为 <code>\\n</code>。</li>
+    </ul>
+  </div>
+
+  <script>
+    function flatten(obj, prefix = '', out = {}) {
+      if (obj === null || obj === undefined) {
+        out[prefix] = '';
+        return out;
+      }
+      if (typeof obj !== 'object') {
+        out[prefix] = String(obj);
+        return out;
+      }
+      if (Array.isArray(obj)) {
+        obj.forEach((v, i) => {
+          const key = prefix ? `${prefix}[${i}]` : `[${i}]`;
+          flatten(v, key, out);
+        });
+        return out;
+      }
+      for (const k in obj) {
+        const newPrefix = prefix ? `${prefix}.${k}` : k;
+        flatten(obj[k], newPrefix, out);
+      }
+      return out;
+    }
+
+    function convert() {
+      const yamlText = document.getElementById('yamlInput').value;
+      const errorEl = document.getElementById('error');
+      const output = document.getElementById('propsOutput');
+      errorEl.textContent = '';
+      output.value = '';
+
+      try {
+        const doc = jsyaml.load(yamlText);
+        const flat = flatten(doc, '');
+        const lines = Object.keys(flat).map(k => {
+          const v = String(flat[k] ?? '');
+          const escaped = v.replace(/\\/g, '\\\\').replace(/\\n/g, '\\n');
+          return `${k}=${escaped}`;
+        });
+        output.value = lines.join('\\n');
+      } catch (e) {
+        errorEl.textContent = '解析错误: ' + e.message;
+      }
+    }
+
+    function clearAll() {
+      document.getElementById('yamlInput').value = '';
+      document.getElementById('propsOutput').value = '';
+      document.getElementById('error').textContent = '';
+    }
+
+    function copyOutput() {
+      const text = document.getElementById('propsOutput').value;
+      navigator.clipboard.writeText(text);
+      alert('已复制到剪贴板');
+    }
+
+    function downloadOutput() {
+      const text = document.getElementById('propsOutput').value;
+      const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'config.properties';
+      a.click();
+      URL.revokeObjectURL(a.href);
+    }
+  </script>
+
+</body>
+</html>
