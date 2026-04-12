@@ -44,23 +44,27 @@
     .tabs button:hover { color: #333; }
     .tabs button.active { color: #333; border-bottom-color: #333; }
     
-    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .grid { display: grid; grid-template-columns: 1fr 16px 1fr; position: relative; }
     .grid.single { grid-template-columns: 1fr; }
-    @media (max-width: 768px) { .grid { grid-template-columns: 1fr; } }
+    .grid-divider { width: 16px; cursor: col-resize; background: transparent; position: relative; z-index: 10; }
+    .grid-divider::after { content: ''; position: absolute; left: 7px; top: 0; bottom: 0; width: 2px; background: #e0e0e0; border-radius: 1px; }
+    .grid-divider:hover::after { background: #999; }
+    .grid-divider.dragging::after { background: #333; }
+    @media (max-width: 768px) { .grid { grid-template-columns: 1fr; } .grid-divider { display: none; } }
     
-    .panel { border: 1px solid #e0e0e0; border-radius: 4px; }
+    .panel { border: 1px solid #e0e0e0; border-radius: 4px; display: flex; flex-direction: column; min-height: 200px; resize: vertical; overflow: hidden; }
     .panel.collapsed { display: none; }
-    .panel-header { padding: 8px 12px; border-bottom: 1px solid #e0e0e0; font-size: 13px; color: #666; background: #fafafa; display: flex; justify-content: space-between; align-items: center; }
+    .panel-header { padding: 8px 12px; border-bottom: 1px solid #e0e0e0; font-size: 13px; color: #666; background: #fafafa; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
     .panel-header-actions { display: flex; align-items: center; gap: 8px; }
     .collapse-btn { background: none; border: none; cursor: pointer; font-size: 12px; color: #666; padding: 2px 6px; border-radius: 3px; }
     .collapse-btn:hover { background: #e0e0e0; }
-    .panel-body { padding: 0; }
+    .panel-body { padding: 0; flex: 1; display: flex; flex-direction: column; overflow: hidden; }
     
     .collapsed-bar { display: none; padding: 8px 12px; background: #f5f5f5; border: 1px solid #e0e0e0; border-radius: 4px; margin-bottom: 16px; cursor: pointer; font-size: 13px; color: #666; }
     .collapsed-bar:hover { background: #eee; }
     .collapsed-bar.show { display: flex; justify-content: space-between; align-items: center; }
     
-    textarea { width: 100%; min-height: 350px; border: none; padding: 12px; font-family: Menlo, Monaco, monospace; font-size: 13px; resize: vertical; outline: none; user-select: text; }
+    textarea { width: 100%; height: 100%; min-height: 350px; border: none; padding: 12px; font-family: Menlo, Monaco, monospace; font-size: 13px; resize: none; outline: none; user-select: text; flex: 1; }
     textarea:focus { background: #fafafa; }
     
     .btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
@@ -74,8 +78,9 @@
     .error { color: #c00; font-size: 13px; margin-top: 8px; padding: 8px 12px; background: #fff5f5; border: 1px solid #fcc; border-radius: 4px; display: none; }
     .error.show { display: block; }
     
-    .json-editor-container { height: 350px; }
-    .jsoneditor { border: none !important; }
+    .json-editor-container { flex: 1; min-height: 200px; }
+    .jsoneditor { border: none !important; height: 100% !important; }
+    .jsoneditor-outer { height: 100% !important; }
     
     .snapshots { margin-top: 16px; border: 1px solid #e0e0e0; border-radius: 4px; }
     .snapshots-header { padding: 8px 12px; border-bottom: 1px solid #e0e0e0; font-size: 13px; display: flex; justify-content: space-between; align-items: center; background: #fafafa; }
@@ -180,6 +185,7 @@
         </div>
         <div class="panel-body"><textarea id="jsonInput" placeholder='{"key": "value"}'></textarea></div>
       </div>
+      <div class="grid-divider" id="jsonGridDivider"></div>
       <div class="panel" id="jsonOutputPanel">
         <div class="panel-header">
           <span>输出</span>
@@ -300,6 +306,7 @@
     const inputCollapsed = document.getElementById('jsonInputCollapsed');
     const outputCollapsed = document.getElementById('jsonOutputCollapsed');
     const grid = document.getElementById('jsonGrid');
+    const divider = document.getElementById('jsonGridDivider');
     
     inputPanel.classList.toggle('collapsed', !jsonPanelState.input);
     outputPanel.classList.toggle('collapsed', !jsonPanelState.output);
@@ -308,15 +315,51 @@
     
     const singleMode = !jsonPanelState.input || !jsonPanelState.output;
     grid.classList.toggle('single', singleMode);
+    if (divider) divider.style.display = singleMode ? 'none' : '';
     
     if (jsonEditor && jsonPanelState.output) {
-      setTimeout(() => {
+      setTimeout(() => jsonEditor.refresh(), 50);
+    }
+  }
+
+  function initGridDivider() {
+    const divider = document.getElementById('jsonGridDivider');
+    const grid = document.getElementById('jsonGrid');
+    if (!divider || !grid) return;
+    
+    let isDragging = false;
+    
+    divider.addEventListener('mousedown', e => {
+      isDragging = true;
+      divider.classList.add('dragging');
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+    });
+    
+    document.addEventListener('mousemove', e => {
+      if (!isDragging) return;
+      const rect = grid.getBoundingClientRect();
+      const percent = ((e.clientX - rect.left) / rect.width) * 100;
+      const clampedPercent = Math.max(20, Math.min(80, percent));
+      grid.style.gridTemplateColumns = `${clampedPercent}% 16px ${100 - clampedPercent}%`;
+      if (jsonEditor) jsonEditor.refresh();
+    });
+    
+    document.addEventListener('mouseup', () => {
+      if (isDragging) {
+        isDragging = false;
+        divider.classList.remove('dragging');
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+      }
+    });
+    
+    const outputPanel = document.getElementById('jsonOutputPanel');
+    if (outputPanel && jsonEditor) {
+      const resizeObserver = new ResizeObserver(() => {
         jsonEditor.refresh();
-        const container = document.getElementById('jsonEditor');
-        if (container) {
-          container.style.height = singleMode ? '500px' : '350px';
-        }
-      }, 50);
+      });
+      resizeObserver.observe(outputPanel);
     }
   }
 
@@ -326,6 +369,7 @@
     initRouter();
     initTabs();
     initJsonEditor();
+    initGridDivider();
     loadSnapshots();
     renderSnapshots();
     initTimestamp();
