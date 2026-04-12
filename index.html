@@ -12,7 +12,7 @@
     body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #fff; }
     
     .header { border-bottom: 1px solid #e0e0e0; padding: 10px 20px; position: sticky; top: 0; background: #fff; z-index: 100; }
-    .header-inner { max-width: 1200px; margin: 0 auto; }
+    .header-inner { margin: 0 auto; }
     
     .tools-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
     .tool-btn { padding: 6px 14px; border: 1px solid #e0e0e0; background: #fff; border-radius: 4px; cursor: pointer; font-size: 13px; color: #333; text-decoration: none; }
@@ -31,7 +31,7 @@
     .dropdown-item:hover { background: #f5f5f5; }
     .dropdown-item .check { color: #333; font-weight: bold; }
     
-    .main { max-width: 1200px; margin: 0 auto; padding: 20px; }
+    .main { margin: 0 auto; padding: 20px; }
     .tool-container { display: none; }
     .tool-container.active { display: block; }
     
@@ -45,11 +45,20 @@
     .tabs button.active { color: #333; border-bottom-color: #333; }
     
     .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .grid.single { grid-template-columns: 1fr; }
     @media (max-width: 768px) { .grid { grid-template-columns: 1fr; } }
     
     .panel { border: 1px solid #e0e0e0; border-radius: 4px; }
+    .panel.collapsed { display: none; }
     .panel-header { padding: 8px 12px; border-bottom: 1px solid #e0e0e0; font-size: 13px; color: #666; background: #fafafa; display: flex; justify-content: space-between; align-items: center; }
+    .panel-header-actions { display: flex; align-items: center; gap: 8px; }
+    .collapse-btn { background: none; border: none; cursor: pointer; font-size: 12px; color: #666; padding: 2px 6px; border-radius: 3px; }
+    .collapse-btn:hover { background: #e0e0e0; }
     .panel-body { padding: 0; }
+    
+    .collapsed-bar { display: none; padding: 8px 12px; background: #f5f5f5; border: 1px solid #e0e0e0; border-radius: 4px; margin-bottom: 16px; cursor: pointer; font-size: 13px; color: #666; }
+    .collapsed-bar:hover { background: #eee; }
+    .collapsed-bar.show { display: flex; justify-content: space-between; align-items: center; }
     
     textarea { width: 100%; min-height: 350px; border: none; padding: 12px; font-family: Menlo, Monaco, monospace; font-size: 13px; resize: vertical; outline: none; user-select: text; }
     textarea:focus { background: #fafafa; }
@@ -152,13 +161,32 @@
       <p>格式化、压缩、转义、去转义、折叠、快照对比</p>
     </div>
     
-    <div class="grid">
-      <div class="panel">
-        <div class="panel-header"><span>输入</span></div>
+    <div class="collapsed-bar" id="jsonInputCollapsed" onclick="toggleJsonPanel('input')">
+      <span>📥 输入面板已收起（点击展开）</span>
+      <span>◀</span>
+    </div>
+    <div class="collapsed-bar" id="jsonOutputCollapsed" onclick="toggleJsonPanel('output')">
+      <span>📤 输出面板已收起（点击展开）</span>
+      <span>◀</span>
+    </div>
+    
+    <div class="grid" id="jsonGrid">
+      <div class="panel" id="jsonInputPanel">
+        <div class="panel-header">
+          <span>输入</span>
+          <div class="panel-header-actions">
+            <button class="collapse-btn" onclick="toggleJsonPanel('input')" title="收起输入面板">◀ 收起</button>
+          </div>
+        </div>
         <div class="panel-body"><textarea id="jsonInput" placeholder='{"key": "value"}'></textarea></div>
       </div>
-      <div class="panel">
-        <div class="panel-header">输出</div>
+      <div class="panel" id="jsonOutputPanel">
+        <div class="panel-header">
+          <span>输出</span>
+          <div class="panel-header-actions">
+            <button class="collapse-btn" onclick="toggleJsonPanel('output')" title="收起输出面板">◀ 收起</button>
+          </div>
+        </div>
         <div class="panel-body">
           <div id="jsonEditor" class="json-editor-container"></div>
         </div>
@@ -259,6 +287,32 @@
   let snapshots = [];
   let selectedSnapshots = [];
   let currentTool = null;
+  let jsonPanelState = { input: true, output: true };
+
+  function toggleJsonPanel(panel) {
+    jsonPanelState[panel] = !jsonPanelState[panel];
+    updateJsonPanelLayout();
+  }
+
+  function updateJsonPanelLayout() {
+    const inputPanel = document.getElementById('jsonInputPanel');
+    const outputPanel = document.getElementById('jsonOutputPanel');
+    const inputCollapsed = document.getElementById('jsonInputCollapsed');
+    const outputCollapsed = document.getElementById('jsonOutputCollapsed');
+    const grid = document.getElementById('jsonGrid');
+    
+    inputPanel.classList.toggle('collapsed', !jsonPanelState.input);
+    outputPanel.classList.toggle('collapsed', !jsonPanelState.output);
+    inputCollapsed.classList.toggle('show', !jsonPanelState.input);
+    outputCollapsed.classList.toggle('show', !jsonPanelState.output);
+    
+    const singleMode = !jsonPanelState.input || !jsonPanelState.output;
+    grid.classList.toggle('single', singleMode);
+    
+    if (jsonEditor && !jsonPanelState.output) {
+      setTimeout(() => jsonEditor.refresh(), 100);
+    }
+  }
 
   function init() {
     loadPinned();
