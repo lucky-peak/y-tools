@@ -309,8 +309,14 @@
     const singleMode = !jsonPanelState.input || !jsonPanelState.output;
     grid.classList.toggle('single', singleMode);
     
-    if (jsonEditor && !jsonPanelState.output) {
-      setTimeout(() => jsonEditor.refresh(), 100);
+    if (jsonEditor && jsonPanelState.output) {
+      setTimeout(() => {
+        jsonEditor.refresh();
+        const container = document.getElementById('jsonEditor');
+        if (container) {
+          container.style.height = singleMode ? '500px' : '350px';
+        }
+      }, 50);
     }
   }
 
