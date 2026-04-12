@@ -117,12 +117,12 @@
     .current-time { background: #f9f9f9; padding: 16px; border-radius: 4px; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; }
     .current-time .left .label { font-size: 12px; color: #999; margin-bottom: 4px; }
     .current-time .left .value { font-size: 32px; font-family: Menlo, Monaco, monospace; font-weight: 600; }
-    .time-formats { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin-top: 16px; }
-    .time-format { background: #f9f9f9; padding: 12px; border-radius: 4px; position: relative; }
+    .time-formats { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; margin-top: 16px; }
+    .time-format { background: #f9f9f9; padding: 12px; border-radius: 4px; position: relative; display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+    .time-format .content { flex: 1; min-width: 0; }
     .time-format .label { font-size: 11px; color: #999; margin-bottom: 4px; }
     .time-format .value { font-size: 13px; font-family: Menlo, Monaco, monospace; word-break: break-all; }
-    .time-format .copy-btn { position: absolute; top: 8px; right: 8px; padding: 2px 6px; font-size: 11px; opacity: 0; transition: opacity 0.2s; }
-    .time-format:hover .copy-btn { opacity: 1; }
+    .time-format .copy-btn { padding: 4px 8px; font-size: 11px; flex-shrink: 0; }
     .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #333; color: #fff; padding: 8px 16px; border-radius: 4px; font-size: 13px; z-index: 1000; }
   </style>
 </head>
@@ -141,12 +141,13 @@
       <p>自动检测格式，双向转换</p>
     </div>
     
-    <div class="grid">
-      <div class="panel">
+    <div class="grid" id="yamlGrid">
+      <div class="panel" id="yamlInputPanel">
         <div class="panel-header">输入</div>
         <div class="panel-body"><textarea id="yamlInput" placeholder="粘贴 YAML 或 Properties 格式内容..."></textarea></div>
       </div>
-      <div class="panel">
+      <div class="grid-divider" id="yamlGridDivider"></div>
+      <div class="panel" id="yamlOutputPanel">
         <div class="panel-header">输出</div>
         <div class="panel-body"><textarea id="yamlOutput" readonly></textarea></div>
       </div>
@@ -323,8 +324,21 @@
   }
 
   function initGridDivider() {
-    const divider = document.getElementById('jsonGridDivider');
-    const grid = document.getElementById('jsonGrid');
+    initDivider('jsonGridDivider', 'jsonGrid');
+    initDivider('yamlGridDivider', 'yamlGrid');
+    
+    const outputPanel = document.getElementById('jsonOutputPanel');
+    if (outputPanel && jsonEditor) {
+      const resizeObserver = new ResizeObserver(() => {
+        jsonEditor.refresh();
+      });
+      resizeObserver.observe(outputPanel);
+    }
+  }
+
+  function initDivider(dividerId, gridId) {
+    const divider = document.getElementById(dividerId);
+    const grid = document.getElementById(gridId);
     if (!divider || !grid) return;
     
     let isDragging = false;
@@ -342,7 +356,7 @@
       const percent = ((e.clientX - rect.left) / rect.width) * 100;
       const clampedPercent = Math.max(20, Math.min(80, percent));
       grid.style.gridTemplateColumns = `${clampedPercent}% 16px ${100 - clampedPercent}%`;
-      if (jsonEditor) jsonEditor.refresh();
+      if (jsonEditor && gridId === 'jsonGrid') jsonEditor.refresh();
     });
     
     document.addEventListener('mouseup', () => {
@@ -353,14 +367,6 @@
         document.body.style.userSelect = '';
       }
     });
-    
-    const outputPanel = document.getElementById('jsonOutputPanel');
-    if (outputPanel && jsonEditor) {
-      const resizeObserver = new ResizeObserver(() => {
-        jsonEditor.refresh();
-      });
-      resizeObserver.observe(outputPanel);
-    }
   }
 
   function init() {
@@ -974,12 +980,12 @@
     const date = new Date(ts * 1000);
     
     document.getElementById('timestampResult').innerHTML = `
-      <div class="time-format"><div class="label">本地时间</div><div class="value">${date.toLocaleString()}</div><button class="copy-btn" onclick="copyText('${date.toLocaleString()}')">复制</button></div>
-      <div class="time-format"><div class="label">ISO 8601</div><div class="value">${date.toISOString()}</div><button class="copy-btn" onclick="copyText('${date.toISOString()}')">复制</button></div>
-      <div class="time-format"><div class="label">UTC</div><div class="value">${date.toUTCString()}</div><button class="copy-btn" onclick="copyText('${date.toUTCString()}')">复制</button></div>
-      <div class="time-format"><div class="label">日期</div><div class="value">${date.toLocaleDateString()}</div><button class="copy-btn" onclick="copyText('${date.toLocaleDateString()}')">复制</button></div>
-      <div class="time-format"><div class="label">时间</div><div class="value">${date.toLocaleTimeString()}</div><button class="copy-btn" onclick="copyText('${date.toLocaleTimeString()}')">复制</button></div>
-      <div class="time-format"><div class="label">毫秒戳</div><div class="value">${ts * 1000}</div><button class="copy-btn" onclick="copyText('${ts * 1000}')">复制</button></div>
+      <div class="time-format"><div class="content"><div class="label">本地时间</div><div class="value">${date.toLocaleString()}</div></div><button class="copy-btn" onclick="copyText('${date.toLocaleString()}')">复制</button></div>
+      <div class="time-format"><div class="content"><div class="label">ISO 8601</div><div class="value">${date.toISOString()}</div></div><button class="copy-btn" onclick="copyText('${date.toISOString()}')">复制</button></div>
+      <div class="time-format"><div class="content"><div class="label">UTC</div><div class="value">${date.toUTCString()}</div></div><button class="copy-btn" onclick="copyText('${date.toUTCString()}')">复制</button></div>
+      <div class="time-format"><div class="content"><div class="label">日期</div><div class="value">${date.toLocaleDateString()}</div></div><button class="copy-btn" onclick="copyText('${date.toLocaleDateString()}')">复制</button></div>
+      <div class="time-format"><div class="content"><div class="label">时间</div><div class="value">${date.toLocaleTimeString()}</div></div><button class="copy-btn" onclick="copyText('${date.toLocaleTimeString()}')">复制</button></div>
+      <div class="time-format"><div class="content"><div class="label">毫秒戳</div><div class="value">${ts * 1000}</div></div><button class="copy-btn" onclick="copyText('${ts * 1000}')">复制</button></div>
     `;
   }
 
@@ -999,10 +1005,10 @@
     const ts = Math.floor(date.getTime() / 1000);
     
     document.getElementById('dateResult').innerHTML = `
-      <div class="time-format"><div class="label">秒级时间戳</div><div class="value">${ts}</div><button class="copy-btn" onclick="copyText('${ts}')">复制</button></div>
-      <div class="time-format"><div class="label">毫秒级时间戳</div><div class="value">${ts * 1000}</div><button class="copy-btn" onclick="copyText('${ts * 1000}')">复制</button></div>
-      <div class="time-format"><div class="label">ISO 8601</div><div class="value">${date.toISOString()}</div><button class="copy-btn" onclick="copyText('${date.toISOString()}')">复制</button></div>
-      <div class="time-format"><div class="label">UTC</div><div class="value">${date.toUTCString()}</div><button class="copy-btn" onclick="copyText('${date.toUTCString()}')">复制</button></div>
+      <div class="time-format"><div class="content"><div class="label">秒级时间戳</div><div class="value">${ts}</div></div><button class="copy-btn" onclick="copyText('${ts}')">复制</button></div>
+      <div class="time-format"><div class="content"><div class="label">毫秒级时间戳</div><div class="value">${ts * 1000}</div></div><button class="copy-btn" onclick="copyText('${ts * 1000}')">复制</button></div>
+      <div class="time-format"><div class="content"><div class="label">ISO 8601</div><div class="value">${date.toISOString()}</div></div><button class="copy-btn" onclick="copyText('${date.toISOString()}')">复制</button></div>
+      <div class="time-format"><div class="content"><div class="label">UTC</div><div class="value">${date.toUTCString()}</div></div><button class="copy-btn" onclick="copyText('${date.toUTCString()}')">复制</button></div>
     `;
   }
 
