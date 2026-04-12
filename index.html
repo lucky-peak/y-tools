@@ -269,7 +269,61 @@
     loadSnapshots();
     renderSnapshots();
     initTimestamp();
+    initDragDrop();
     document.getElementById('jsonInput').addEventListener('input', debounce(autoFormat, 300));
+  }
+
+  function initDragDrop() {
+    document.addEventListener('dragover', e => {
+      e.preventDefault();
+      document.body.style.background = '#f0f7ff';
+    });
+    
+    document.addEventListener('dragleave', e => {
+      if (e.relatedTarget === null) {
+        document.body.style.background = '#fff';
+      }
+    });
+    
+    document.addEventListener('drop', e => {
+      e.preventDefault();
+      document.body.style.background = '#fff';
+      
+      const files = e.dataTransfer.files;
+      if (files.length === 0) return;
+      
+      const file = files[0];
+      const ext = file.name.split('.').pop().toLowerCase();
+      
+      const reader = new FileReader();
+      reader.onload = evt => {
+        const content = evt.target.result;
+        
+        if (['json'].includes(ext)) {
+          location.hash = 'json';
+          setTimeout(() => {
+            document.getElementById('jsonInput').value = content;
+            autoFormat();
+          }, 100);
+        } else if (['yaml', 'yml'].includes(ext)) {
+          location.hash = 'yaml';
+          setTimeout(() => {
+            document.getElementById('yamlInput').value = content;
+          }, 100);
+        } else if (['properties'].includes(ext)) {
+          location.hash = 'yaml';
+          setTimeout(() => {
+            document.getElementById('yamlInput').value = content;
+          }, 100);
+        } else {
+          location.hash = 'json';
+          setTimeout(() => {
+            document.getElementById('jsonInput').value = content;
+          }, 100);
+        }
+      };
+      reader.readAsText(file);
+    });
   }
 
   function loadPinned() {
@@ -277,6 +331,14 @@
     if (saved) {
       const pinned = JSON.parse(saved);
       tools.forEach(t => t.pinned = pinned.includes(t.id));
+      const pinnedOrder = {};
+      pinned.forEach((id, i) => pinnedOrder[id] = i);
+      tools.sort((a, b) => {
+        if (a.pinned && b.pinned) return pinnedOrder[a.id] - pinnedOrder[b.id];
+        if (a.pinned) return -1;
+        if (b.pinned) return 1;
+        return 0;
+      });
     }
   }
 
@@ -285,12 +347,14 @@
     localStorage.setItem('pinned_tools', JSON.stringify(pinned));
   }
 
+  let draggedTool = null;
+
   function renderToolsBar() {
     const bar = document.getElementById('toolsBar');
     const pinnedTools = tools.filter(t => t.pinned);
     
     let html = pinnedTools.map(t => `
-      <a href="#${t.id}" class="tool-btn ${currentTool === t.id ? 'active' : ''}" data-tool="${t.id}">${t.name}</a>
+      <a href="#${t.id}" class="tool-btn ${currentTool === t.id ? 'active' : ''}" data-tool="${t.id}" draggable="true" ondragstart="toolDragStart(event, '${t.id}')" ondragover="toolDragOver(event)" ondrop="toolDrop(event, '${t.id}')">${t.name}</a>
     `).join('');
     
     const categories = {};
@@ -334,6 +398,44 @@
         location.hash = id;
       }
     }
+  }
+
+  function toolDragStart(e, id) {
+    draggedTool = id;
+    e.dataTransfer.effectAllowed = 'move';
+  }
+
+  function toolDragOver(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  }
+
+  function toolDrop(e, targetId) {
+    e.preventDefault();
+    if (draggedTool && draggedTool !== targetId) {
+      const pinned = tools.filter(t => t.pinned);
+      const draggedIdx = pinned.findIndex(t => t.id === draggedTool);
+      const targetIdx = pinned.findIndex(t => t.id === targetId);
+      
+      if (draggedIdx > -1 && targetIdx > -1) {
+        const newOrder = [...pinned];
+        newOrder.splice(draggedIdx, 1);
+        newOrder.splice(targetIdx, 0, tools.find(t => t.id === draggedTool));
+        
+        tools.sort((a, b) => {
+          const aIdx = newOrder.findIndex(t => t.id === a.id);
+          const bIdx = newOrder.findIndex(t => t.id === b.id);
+          if (aIdx === -1 && bIdx === -1) return 0;
+          if (aIdx === -1) return 1;
+          if (bIdx === -1) return -1;
+          return aIdx - bIdx;
+        });
+        
+        savePinned();
+        renderToolsBar();
+      }
+    }
+    draggedTool = null;
   }
 
   function debounce(fn, delay) {
