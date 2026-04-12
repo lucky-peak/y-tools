@@ -114,9 +114,11 @@
     .timestamp-row label { min-width: 100px; font-size: 13px; color: #666; }
     .timestamp-row input { padding: 8px 12px; border: 1px solid #e0e0e0; border-radius: 4px; font-size: 14px; font-family: Menlo, Monaco, monospace; }
     .timestamp-row input:focus { outline: none; border-color: #999; }
-    .current-time { background: #f9f9f9; padding: 16px; border-radius: 4px; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; }
-    .current-time .left .label { font-size: 12px; color: #999; margin-bottom: 4px; }
-    .current-time .left .value { font-size: 32px; font-family: Menlo, Monaco, monospace; font-weight: 600; }
+    .current-time { background: #f9f9f9; padding: 16px; border-radius: 4px; margin-bottom: 16px; }
+    .current-time .label { font-size: 12px; color: #999; margin-bottom: 4px; }
+    .current-time .value-row { display: flex; align-items: center; gap: 12px; }
+    .current-time .value { font-size: 32px; font-family: Menlo, Monaco, monospace; font-weight: 600; }
+    .current-time .copy-btn { padding: 6px 12px; font-size: 13px; }
     .time-formats { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; margin-top: 16px; }
     .time-format { background: #f9f9f9; padding: 12px; border-radius: 4px; position: relative; display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
     .time-format .content { flex: 1; min-width: 0; }
@@ -252,11 +254,11 @@
     </div>
     
     <div class="current-time">
-      <div class="left">
-        <div class="label">当前时间戳</div>
+      <div class="label">当前时间戳</div>
+      <div class="value-row">
         <div class="value" id="currentTimestamp">-</div>
+        <button class="copy-btn" onclick="copyCurrentTimestamp()">复制</button>
       </div>
-      <button onclick="copyCurrentTimestamp()">复制</button>
     </div>
     
     <div class="timestamp-section">
