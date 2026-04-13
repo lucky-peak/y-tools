@@ -350,6 +350,75 @@
       </div>
     </div>
   </div>
+
+  <div id="diff" class="tool-container">
+    <div class="tool-header">
+      <h1>文件对比</h1>
+      <p>对比两个文本文件或内容，高亮显示差异</p>
+    </div>
+    
+    <div class="grid" id="diffGrid">
+      <div class="panel" id="diffInputPanel1">
+        <div class="panel-header">
+          <span>原始文本</span>
+          <div class="panel-header-actions">
+            <button class="collapse-btn" onclick="loadDiffFile(1)">加载文件</button>
+          </div>
+        </div>
+        <div class="panel-body"><textarea id="diffInput1" placeholder="粘贴或拖入原始文本..." style="min-height: 300px;"></textarea></div>
+      </div>
+      <div class="grid-divider" id="diffGridDivider"></div>
+      <div class="panel" id="diffInputPanel2">
+        <div class="panel-header">
+          <span>修改后文本</span>
+          <div class="panel-header-actions">
+            <button class="collapse-btn" onclick="loadDiffFile(2)">加载文件</button>
+          </div>
+        </div>
+        <div class="panel-body"><textarea id="diffInput2" placeholder="粘贴或拖入修改后文本..." style="min-height: 300px;"></textarea></div>
+      </div>
+    </div>
+    
+    <div class="btns">
+      <button class="primary" onclick="compareTexts()">对比</button>
+      <button onclick="clearDiff()">清空</button>
+      <button onclick="swapDiffInputs()">交换</button>
+    </div>
+    <div id="diffError" class="error"></div>
+    
+    <div class="diff-panel" id="diffResultPanel" style="margin-top: 16px;">
+      <div class="diff-header">
+        <span id="diffResultTitle">对比结果</span>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <span style="font-size: 12px; color: #666;">
+            <span class="diff-add" style="padding: 1px 4px;">新增</span>
+            <span class="diff-del" style="padding: 1px 4px;">删除</span>
+          </span>
+          <button class="small" onclick="closeDiffResult()">关闭</button>
+        </div>
+      </div>
+      <div class="diff-grid">
+        <div>
+          <div class="diff-side-header">原始文本</div>
+          <div class="diff-side" id="diffResultLeft"></div>
+        </div>
+        <div>
+          <div class="diff-side-header">修改后文本</div>
+          <div class="diff-side" id="diffResultRight"></div>
+        </div>
+      </div>
+    </div>
+    
+    <div style="margin-top: 16px; padding: 12px; background: #f9f9f9; border-radius: 4px; font-size: 13px; color: #666;">
+      <strong>使用说明：</strong>
+      <ul style="margin: 8px 0 0 20px; line-height: 1.6;">
+        <li>在左侧输入原始文本，右侧输入修改后文本</li>
+        <li>支持拖拽文件到输入框</li>
+        <li>点击"对比"按钮查看差异</li>
+        <li>绿色背景表示新增内容，红色背景表示删除内容</li>
+      </ul>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -357,6 +426,7 @@
     { id: 'yaml', name: 'YAML/Properties', category: '格式转换', pinned: true },
     { id: 'json', name: 'JSON', category: '格式转换', pinned: true },
     { id: 'sql', name: 'SQL', category: '格式转换', pinned: true },
+    { id: 'diff', name: '文件对比', category: '格式转换', pinned: true },
     { id: 'timestamp', name: '时间戳', category: '时间工具', pinned: false },
   ];
 
@@ -397,6 +467,7 @@
     initDivider('jsonGridDivider', 'jsonGrid');
     initDivider('yamlGridDivider', 'yamlGrid');
     initDivider('sqlGridDivider', 'sqlGrid');
+    initDivider('diffGridDivider', 'diffGrid');
     
     const outputPanel = document.getElementById('jsonOutputPanel');
     if (outputPanel && jsonEditor) {
@@ -1343,6 +1414,129 @@
       document.getElementById('dropdownMenu')?.classList.remove('show');
     }
   });
+
+  function loadDiffFile(panelNum) {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'text/*,.json,.js,.ts,.py,.java,.c,.cpp,.h,.css,.html,.xml,.yaml,.yml,.md,.txt,.sql';
+    input.onchange = e => {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = evt => {
+          document.getElementById(`diffInput${panelNum}`).value = evt.target.result;
+          showToast(`已加载文件: ${file.name}`);
+        };
+        reader.readAsText(file);
+      }
+    };
+    input.click();
+  }
+
+  function compareTexts() {
+    hideError('diffError');
+    const text1 = document.getElementById('diffInput1').value;
+    const text2 = document.getElementById('diffInput2').value;
+    
+    if (!text1 && !text2) {
+      showError('diffError', '请输入要对比的文本');
+      return;
+    }
+    
+    const lines1 = text1.split('\n');
+    const lines2 = text2.split('\n');
+    
+    const { left, right, stats } = computeLineDiff(lines1, lines2);
+    
+    document.getElementById('diffResultTitle').textContent = 
+      `对比结果: ${stats.added} 行新增, ${stats.removed} 行删除, ${stats.unchanged} 行相同`;
+    document.getElementById('diffResultLeft').innerHTML = left;
+    document.getElementById('diffResultRight').innerHTML = right;
+    document.getElementById('diffResultPanel').classList.add('show');
+  }
+
+  function computeLineDiff(lines1, lines2) {
+    const lcs = computeLCS(lines1, lines2);
+    
+    const left = [];
+    const right = [];
+    const stats = { added: 0, removed: 0, unchanged: 0 };
+    
+    let i = 0, j = 0, k = 0;
+    
+    while (i < lines1.length || j < lines2.length) {
+      if (k < lcs.length && i < lines1.length && j < lines2.length && 
+          lines1[i] === lcs[k] && lines2[j] === lcs[k]) {
+        left.push(`<div class="diff-line diff-same">${escapeHtml(lines1[i])}</div>`);
+        right.push(`<div class="diff-line diff-same">${escapeHtml(lines2[j])}</div>`);
+        stats.unchanged++;
+        i++; j++; k++;
+      } else if (j >= lines2.length || (k < lcs.length && i < lines1.length && lines1[i] !== lcs[k])) {
+        left.push(`<div class="diff-line diff-del">${escapeHtml(lines1[i])}</div>`);
+        right.push(`<div class="diff-line"></div>`);
+        stats.removed++;
+        i++;
+      } else {
+        left.push(`<div class="diff-line"></div>`);
+        right.push(`<div class="diff-line diff-add">${escapeHtml(lines2[j])}</div>`);
+        stats.added++;
+        j++;
+      }
+    }
+    
+    return { left: left.join(''), right: right.join(''), stats };
+  }
+
+  function computeLCS(arr1, arr2) {
+    const m = arr1.length;
+    const n = arr2.length;
+    const dp = Array(m + 1).fill(null).map(() => Array(n + 1).fill(0));
+    
+    for (let i = 1; i <= m; i++) {
+      for (let j = 1; j <= n; j++) {
+        if (arr1[i - 1] === arr2[j - 1]) {
+          dp[i][j] = dp[i - 1][j - 1] + 1;
+        } else {
+          dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
+        }
+      }
+    }
+    
+    const lcs = [];
+    let i = m, j = n;
+    while (i > 0 && j > 0) {
+      if (arr1[i - 1] === arr2[j - 1]) {
+        lcs.unshift(arr1[i - 1]);
+        i--; j--;
+      } else if (dp[i - 1][j] > dp[i][j - 1]) {
+        i--;
+      } else {
+        j--;
+      }
+    }
+    
+    return lcs;
+  }
+
+  function clearDiff() {
+    document.getElementById('diffInput1').value = '';
+    document.getElementById('diffInput2').value = '';
+    document.getElementById('diffResultPanel').classList.remove('show');
+    hideError('diffError');
+  }
+
+  function swapDiffInputs() {
+    const input1 = document.getElementById('diffInput1');
+    const input2 = document.getElementById('diffInput2');
+    const temp = input1.value;
+    input1.value = input2.value;
+    input2.value = temp;
+    showToast('已交换输入内容');
+  }
+
+  function closeDiffResult() {
+    document.getElementById('diffResultPanel').classList.remove('show');
+  }
 
   init();
 </script>
