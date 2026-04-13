@@ -7,6 +7,7 @@
   <script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"></script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jsoneditor@9.10.2/dist/jsoneditor.min.css">
   <script src="https://cdn.jsdelivr.net/npm/jsoneditor@9.10.2/dist/jsoneditor.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sql-formatter@15.0.2/dist/sql-formatter.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #fff; }
@@ -283,12 +284,79 @@
       <div class="time-formats" id="dateResult"></div>
     </div>
   </div>
+
+  <div id="sql" class="tool-container">
+    <div class="tool-header">
+      <h1>SQL 工具</h1>
+      <p>格式化、压缩、分析、保存 SQL 语句</p>
+    </div>
+    
+    <div class="grid" id="sqlGrid">
+      <div class="panel" id="sqlInputPanel">
+        <div class="panel-header">
+          <span>输入</span>
+          <div class="panel-header-actions">
+            <select id="sqlDialect" style="padding: 4px 8px; border: 1px solid #d0d0d0; border-radius: 4px; font-size: 12px;">
+              <option value="sql">标准 SQL</option>
+              <option value="mysql">MySQL</option>
+              <option value="postgresql">PostgreSQL</option>
+              <option value="mariadb">MariaDB</option>
+              <option value="sqlite">SQLite</option>
+              <option value="transactsql">SQL Server</option>
+              <option value="plsql">Oracle PL/SQL</option>
+            </select>
+          </div>
+        </div>
+        <div class="panel-body"><textarea id="sqlInput" placeholder="输入 SQL 语句..." style="min-height: 300px;"></textarea></div>
+      </div>
+      <div class="grid-divider" id="sqlGridDivider"></div>
+      <div class="panel" id="sqlOutputPanel">
+        <div class="panel-header">输出</div>
+        <div class="panel-body"><textarea id="sqlOutput" readonly style="min-height: 300px;"></textarea></div>
+      </div>
+    </div>
+    
+    <div class="btns">
+      <button class="primary" onclick="sqlFormat()">格式化</button>
+      <button onclick="sqlMinify()">压缩</button>
+      <button onclick="copySql()">复制</button>
+      <button onclick="clearSql()">清空</button>
+    </div>
+    <div id="sqlError" class="error"></div>
+    
+    <div class="snapshots" style="margin-top: 16px;">
+      <div class="snapshots-header">
+        <span>SQL 快照（点击恢复）</span>
+        <button class="small" onclick="clearSqlSnapshots()">清空全部</button>
+      </div>
+      <div class="snapshots-tabs" id="sqlSnapshotsList">
+        <span class="snapshot-empty">暂无快照</span>
+      </div>
+      <div class="snapshots-actions">
+        <input type="text" id="sqlSnapshotName" placeholder="快照名称">
+        <button onclick="saveSqlSnapshot()">保存快照</button>
+      </div>
+    </div>
+    
+    <div class="sql-analysis" style="margin-top: 16px; border: 1px solid #e0e0e0; border-radius: 4px;">
+      <div class="snapshots-header">
+        <span>SQL 分析</span>
+      </div>
+      <div id="sqlAnalysisResult" style="padding: 12px;">
+        <span style="color: #999; font-size: 13px;">输入 SQL 后点击"分析 SQL"查看结果</span>
+      </div>
+      <div class="snapshots-actions">
+        <button onclick="analyzeSql()">分析 SQL</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script>
   const tools = [
     { id: 'yaml', name: 'YAML/Properties', category: '格式转换', pinned: true },
     { id: 'json', name: 'JSON', category: '格式转换', pinned: true },
+    { id: 'sql', name: 'SQL', category: '格式转换', pinned: true },
     { id: 'timestamp', name: '时间戳', category: '时间工具', pinned: false },
   ];
 
@@ -328,6 +396,7 @@
   function initGridDivider() {
     initDivider('jsonGridDivider', 'jsonGrid');
     initDivider('yamlGridDivider', 'yamlGrid');
+    initDivider('sqlGridDivider', 'sqlGrid');
     
     const outputPanel = document.getElementById('jsonOutputPanel');
     if (outputPanel && jsonEditor) {
@@ -380,6 +449,8 @@
     initGridDivider();
     loadSnapshots();
     renderSnapshots();
+    loadSqlSnapshots();
+    renderSqlSnapshots();
     initTimestamp();
     initDragDrop();
     document.getElementById('jsonInput').addEventListener('input', debounce(autoFormat, 300));
@@ -1029,6 +1100,242 @@
   function copyText(text) {
     navigator.clipboard.writeText(text);
     showToast('已复制');
+  }
+
+  let sqlSnapshots = [];
+
+  function sqlFormat() {
+    hideError('sqlError');
+    const input = document.getElementById('sqlInput').value.trim();
+    if (!input) return;
+    
+    try {
+      const dialect = document.getElementById('sqlDialect').value;
+      const formatted = sqlFormatter.format(input, { language: dialect });
+      document.getElementById('sqlOutput').value = formatted;
+    } catch (e) {
+      showError('sqlError', 'SQL 格式化错误: ' + e.message);
+    }
+  }
+
+  function sqlMinify() {
+    hideError('sqlError');
+    const input = document.getElementById('sqlInput').value.trim();
+    if (!input) return;
+    
+    try {
+      const minified = input
+        .replace(/\s+/g, ' ')
+        .replace(/\s*,\s*/g, ', ')
+        .replace(/\s*\(\s*/g, '(')
+        .replace(/\s*\)\s*/g, ')')
+        .trim();
+      document.getElementById('sqlOutput').value = minified;
+    } catch (e) {
+      showError('sqlError', 'SQL 压缩错误: ' + e.message);
+    }
+  }
+
+  function copySql() {
+    const output = document.getElementById('sqlOutput').value;
+    if (output) {
+      navigator.clipboard.writeText(output);
+      showToast('已复制');
+    } else {
+      const input = document.getElementById('sqlInput').value;
+      if (input) {
+        navigator.clipboard.writeText(input);
+        showToast('已复制输入内容');
+      }
+    }
+  }
+
+  function clearSql() {
+    document.getElementById('sqlInput').value = '';
+    document.getElementById('sqlOutput').value = '';
+    document.getElementById('sqlAnalysisResult').innerHTML = '<span style="color: #999; font-size: 13px;">输入 SQL 后点击"分析 SQL"查看结果</span>';
+    hideError('sqlError');
+  }
+
+  function loadSqlSnapshots() {
+    sqlSnapshots = JSON.parse(localStorage.getItem('sql_snapshots') || '[]');
+  }
+
+  function saveSqlSnapshotsToStorage() {
+    localStorage.setItem('sql_snapshots', JSON.stringify(sqlSnapshots));
+  }
+
+  function renderSqlSnapshots() {
+    const list = document.getElementById('sqlSnapshotsList');
+    if (!sqlSnapshots.length) {
+      list.innerHTML = '<span class="snapshot-empty">暂无快照</span>';
+      return;
+    }
+    list.innerHTML = sqlSnapshots.map((s, i) => `
+      <div class="snapshot-tab" onclick="loadSqlSnapshot(${i})">
+        <span>${escapeHtml(s.name)}</span>
+        <span class="close" onclick="event.stopPropagation(); deleteSqlSnapshot(${i})">×</span>
+      </div>
+    `).join('');
+  }
+
+  function saveSqlSnapshot() {
+    const nameInput = document.getElementById('sqlSnapshotName');
+    const name = nameInput.value.trim() || `SQL ${sqlSnapshots.length + 1}`;
+    const input = document.getElementById('sqlInput').value.trim();
+    
+    if (!input) {
+      showToast('输入框为空');
+      return;
+    }
+    
+    sqlSnapshots.push({ name, sql: input, time: Date.now() });
+    saveSqlSnapshotsToStorage();
+    renderSqlSnapshots();
+    nameInput.value = '';
+    showToast('快照已保存');
+  }
+
+  function loadSqlSnapshot(index) {
+    const s = sqlSnapshots[index];
+    if (s) {
+      document.getElementById('sqlInput').value = s.sql;
+      showToast('已加载快照');
+    }
+  }
+
+  function deleteSqlSnapshot(index) {
+    sqlSnapshots.splice(index, 1);
+    saveSqlSnapshotsToStorage();
+    renderSqlSnapshots();
+    showToast('快照已删除');
+  }
+
+  function clearSqlSnapshots() {
+    if (confirm('清空所有 SQL 快照？')) {
+      sqlSnapshots = [];
+      saveSqlSnapshotsToStorage();
+      renderSqlSnapshots();
+    }
+  }
+
+  function analyzeSql() {
+    const input = document.getElementById('sqlInput').value.trim();
+    if (!input) {
+      showToast('请输入 SQL 语句');
+      return;
+    }
+
+    const analysis = {
+      type: '',
+      tables: [],
+      columns: [],
+      conditions: [],
+      joins: [],
+      orderBy: [],
+      groupBy: [],
+      limit: null
+    };
+
+    const sqlUpper = input.toUpperCase();
+    
+    if (sqlUpper.includes('SELECT')) analysis.type = 'SELECT (查询)';
+    else if (sqlUpper.includes('INSERT')) analysis.type = 'INSERT (插入)';
+    else if (sqlUpper.includes('UPDATE')) analysis.type = 'UPDATE (更新)';
+    else if (sqlUpper.includes('DELETE')) analysis.type = 'DELETE (删除)';
+    else if (sqlUpper.includes('CREATE')) analysis.type = 'CREATE (创建)';
+    else if (sqlUpper.includes('ALTER')) analysis.type = 'ALTER (修改)';
+    else if (sqlUpper.includes('DROP')) analysis.type = 'DROP (删除)';
+    else analysis.type = '未知类型';
+
+    const tablePatterns = [
+      /(?:FROM|JOIN|INTO|UPDATE|TABLE)\s+([a-zA-Z_][a-zA-Z0-9_]*)/gi,
+      /(?:FROM|JOIN|INTO|UPDATE|TABLE)\s+`([^`]+)`/gi,
+      /(?:FROM|JOIN|INTO|UPDATE|TABLE)\s+"([^"]+)"/gi
+    ];
+    
+    const tableSet = new Set();
+    tablePatterns.forEach(pattern => {
+      let match;
+      while ((match = pattern.exec(input)) !== null) {
+        tableSet.add(match[1]);
+      }
+    });
+    analysis.tables = Array.from(tableSet);
+
+    const selectMatch = sqlUpper.match(/SELECT\s+([\s\S]+?)\s+FROM/i);
+    if (selectMatch && selectMatch[1] !== '*') {
+      const cols = selectMatch[1].split(',').map(c => c.trim()).filter(c => c && c !== '*');
+      analysis.columns = cols;
+    }
+
+    const whereMatch = input.match(/WHERE\s+([\s\S]+?)(?:ORDER|GROUP|LIMIT|$)/i);
+    if (whereMatch) {
+      analysis.conditions.push(whereMatch[1].trim());
+    }
+
+    const joinMatches = input.match(/(?:LEFT|RIGHT|INNER|OUTER|FULL|CROSS)?\s*JOIN\s+[a-zA-Z_][a-zA-Z0-9_]*\s+(?:AS\s+)?[a-zA-Z_][a-zA-Z0-9_]*\s+ON\s+[^WHERE|ORDER|GROUP|LIMIT]+/gi);
+    if (joinMatches) {
+      analysis.joins = joinMatches.map(j => j.trim());
+    }
+
+    const orderMatch = input.match(/ORDER\s+BY\s+([^LIMIT|GROUP|$]+)/i);
+    if (orderMatch) {
+      analysis.orderBy = orderMatch[1].trim().split(',').map(o => o.trim());
+    }
+
+    const groupMatch = input.match(/GROUP\s+BY\s+([^ORDER|LIMIT|$]+)/i);
+    if (groupMatch) {
+      analysis.groupBy = groupMatch[1].trim().split(',').map(g => g.trim());
+    }
+
+    const limitMatch = input.match(/LIMIT\s+(\d+)/i);
+    if (limitMatch) {
+      analysis.limit = parseInt(limitMatch[1]);
+    }
+
+    const resultHtml = `
+      <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px;">
+        <div style="background: #f9f9f9; padding: 12px; border-radius: 4px;">
+          <div style="font-size: 11px; color: #999; margin-bottom: 4px;">语句类型</div>
+          <div style="font-size: 13px; font-weight: 600;">${escapeHtml(analysis.type)}</div>
+        </div>
+        <div style="background: #f9f9f9; padding: 12px; border-radius: 4px;">
+          <div style="font-size: 11px; color: #999; margin-bottom: 4px;">涉及表 (${analysis.tables.length})</div>
+          <div style="font-size: 13px;">${analysis.tables.length ? analysis.tables.map(t => escapeHtml(t)).join(', ') : '-'}</div>
+        </div>
+        <div style="background: #f9f9f9; padding: 12px; border-radius: 4px;">
+          <div style="font-size: 11px; color: #999; margin-bottom: 4px;">查询字段 (${analysis.columns.length})</div>
+          <div style="font-size: 13px;">${analysis.columns.length ? analysis.columns.slice(0, 5).map(c => escapeHtml(c)).join(', ') + (analysis.columns.length > 5 ? '...' : '') : '全部 (*)'}</div>
+        </div>
+        <div style="background: #f9f9f9; padding: 12px; border-radius: 4px;">
+          <div style="font-size: 11px; color: #999; margin-bottom: 4px;">排序字段</div>
+          <div style="font-size: 13px;">${analysis.orderBy.length ? analysis.orderBy.map(o => escapeHtml(o)).join(', ') : '-'}</div>
+        </div>
+        <div style="background: #f9f9f9; padding: 12px; border-radius: 4px;">
+          <div style="font-size: 11px; color: #999; margin-bottom: 4px;">分组字段</div>
+          <div style="font-size: 13px;">${analysis.groupBy.length ? analysis.groupBy.map(g => escapeHtml(g)).join(', ') : '-'}</div>
+        </div>
+        <div style="background: #f9f9f9; padding: 12px; border-radius: 4px;">
+          <div style="font-size: 11px; color: #999; margin-bottom: 4px;">LIMIT</div>
+          <div style="font-size: 13px;">${analysis.limit || '-'}</div>
+        </div>
+      </div>
+      ${analysis.conditions.length ? `
+        <div style="margin-top: 12px; background: #f9f9f9; padding: 12px; border-radius: 4px;">
+          <div style="font-size: 11px; color: #999; margin-bottom: 4px;">WHERE 条件</div>
+          <div style="font-size: 12px; font-family: Menlo, Monaco, monospace; white-space: pre-wrap; word-break: break-all;">${escapeHtml(analysis.conditions[0])}</div>
+        </div>
+      ` : ''}
+      ${analysis.joins.length ? `
+        <div style="margin-top: 12px; background: #f9f9f9; padding: 12px; border-radius: 4px;">
+          <div style="font-size: 11px; color: #999; margin-bottom: 4px;">JOIN 语句 (${analysis.joins.length})</div>
+          ${analysis.joins.map(j => `<div style="font-size: 12px; font-family: Menlo, Monaco, monospace; margin-bottom: 4px; white-space: pre-wrap; word-break: break-all;">${escapeHtml(j)}</div>`).join('')}
+        </div>
+      ` : ''}
+    `;
+
+    document.getElementById('sqlAnalysisResult').innerHTML = resultHtml;
   }
 
   document.addEventListener('click', e => {
