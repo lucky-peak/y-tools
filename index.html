@@ -8,6 +8,9 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jsoneditor@9.10.2/dist/jsoneditor.min.css">
   <script src="https://cdn.jsdelivr.net/npm/jsoneditor@9.10.2/dist/jsoneditor.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sql-formatter@15.0.2/dist/sql-formatter.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/diff/dist/diff.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/diff2html/bundles/css/diff2html.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/diff2html/bundles/js/diff2html-ui.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #fff; }
@@ -127,6 +130,19 @@
     .time-format .value { font-size: 13px; font-family: Menlo, Monaco, monospace; word-break: break-all; }
     .time-format .copy-btn { padding: 4px 8px; font-size: 11px; flex-shrink: 0; }
     .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #333; color: #fff; padding: 8px 16px; border-radius: 4px; font-size: 13px; z-index: 1000; }
+    
+    .diff2html-container { margin-top: 16px; border: 1px solid #e0e0e0; border-radius: 4px; overflow: hidden; }
+    .diff2html-container .d2h-wrapper { background: #fff; }
+    .diff2html-container .d2h-file-header { background: #f5f5f5; border-bottom: 1px solid #e0e0e0; }
+    .diff2html-container .d2h-file-name { font-family: Menlo, Monaco, monospace; }
+    .diff2html-container .d2h-info { display: none; }
+    .d2h-code-line-prefix, .d2h-code-line-ctn { font-family: Menlo, Monaco, monospace; font-size: 13px; }
+    .d2h-diff-tbody { border: none; }
+    .d2h-ins { background: #e6ffec !important; }
+    .d2h-del { background: #ffeef0 !important; }
+    .d2h-code-line ins, .d2h-code-line del { background: transparent !important; }
+    .d2h-ins .d2h-code-line-ctn { background: #acf2bd !important; }
+    .d2h-del .d2h-code-line-ctn { background: #fdb8c0 !important; }
   </style>
 </head>
 <body>
@@ -383,30 +399,19 @@
       <button class="primary" onclick="compareTexts()">对比</button>
       <button onclick="clearDiff()">清空</button>
       <button onclick="swapDiffInputs()">交换</button>
+      <select id="diffViewType" style="padding: 6px 12px; border: 1px solid #d0d0d0; border-radius: 4px; font-size: 13px;">
+        <option value="side-by-side">并排视图</option>
+        <option value="line-by-line">逐行视图</option>
+      </select>
     </div>
     <div id="diffError" class="error"></div>
     
-    <div class="diff-panel" id="diffResultPanel" style="margin-top: 16px;">
-      <div class="diff-header">
+    <div class="diff2html-container" id="diffResultPanel" style="display: none;">
+      <div class="diff-header" style="padding: 8px 12px; background: #f5f5f5; border-bottom: 1px solid #e0e0e0; display: flex; justify-content: space-between; align-items: center;">
         <span id="diffResultTitle">对比结果</span>
-        <div style="display: flex; gap: 8px; align-items: center;">
-          <span style="font-size: 12px; color: #666;">
-            <span class="diff-add" style="padding: 1px 4px;">新增</span>
-            <span class="diff-del" style="padding: 1px 4px;">删除</span>
-          </span>
-          <button class="small" onclick="closeDiffResult()">关闭</button>
-        </div>
+        <button class="small" onclick="closeDiffResult()">关闭</button>
       </div>
-      <div class="diff-grid">
-        <div>
-          <div class="diff-side-header">原始文本</div>
-          <div class="diff-side" id="diffResultLeft"></div>
-        </div>
-        <div>
-          <div class="diff-side-header">修改后文本</div>
-          <div class="diff-side" id="diffResultRight"></div>
-        </div>
-      </div>
+      <div id="diff2htmlOutput"></div>
     </div>
     
     <div style="margin-top: 16px; padding: 12px; background: #f9f9f9; border-radius: 4px; font-size: 13px; color: #666;">
@@ -1443,85 +1448,35 @@
       return;
     }
     
-    const lines1 = text1.split('\n');
-    const lines2 = text2.split('\n');
+    const viewType = document.getElementById('diffViewType').value;
     
-    const { left, right, stats } = computeLineDiff(lines1, lines2);
+    const diff = Diff.createTwoFilesPatch('原始文本', '修改后文本', text1, text2);
+    
+    const targetElement = document.getElementById('diff2htmlOutput');
+    const configuration = {
+      drawFileList: false,
+      matching: 'lines',
+      outputFormat: viewType === 'side-by-side' ? 'side-by-side' : 'line-by-line',
+      highlight: true,
+    };
+    
+    const diff2htmlUi = new Diff2HtmlUI(targetElement, diff, configuration);
+    diff2htmlUi.draw();
+    diff2htmlUi.highlightCode();
+    
+    const added = (diff.match(/\n\+/g) || []).length;
+    const removed = (diff.match(/\n-/g) || []).length;
     
     document.getElementById('diffResultTitle').textContent = 
-      `对比结果: ${stats.added} 行新增, ${stats.removed} 行删除, ${stats.unchanged} 行相同`;
-    document.getElementById('diffResultLeft').innerHTML = left;
-    document.getElementById('diffResultRight').innerHTML = right;
-    document.getElementById('diffResultPanel').classList.add('show');
-  }
-
-  function computeLineDiff(lines1, lines2) {
-    const lcs = computeLCS(lines1, lines2);
-    
-    const left = [];
-    const right = [];
-    const stats = { added: 0, removed: 0, unchanged: 0 };
-    
-    let i = 0, j = 0, k = 0;
-    
-    while (i < lines1.length || j < lines2.length) {
-      if (k < lcs.length && i < lines1.length && j < lines2.length && 
-          lines1[i] === lcs[k] && lines2[j] === lcs[k]) {
-        left.push(`<div class="diff-line diff-same">${escapeHtml(lines1[i])}</div>`);
-        right.push(`<div class="diff-line diff-same">${escapeHtml(lines2[j])}</div>`);
-        stats.unchanged++;
-        i++; j++; k++;
-      } else if (j >= lines2.length || (k < lcs.length && i < lines1.length && lines1[i] !== lcs[k])) {
-        left.push(`<div class="diff-line diff-del">${escapeHtml(lines1[i])}</div>`);
-        right.push(`<div class="diff-line"></div>`);
-        stats.removed++;
-        i++;
-      } else {
-        left.push(`<div class="diff-line"></div>`);
-        right.push(`<div class="diff-line diff-add">${escapeHtml(lines2[j])}</div>`);
-        stats.added++;
-        j++;
-      }
-    }
-    
-    return { left: left.join(''), right: right.join(''), stats };
-  }
-
-  function computeLCS(arr1, arr2) {
-    const m = arr1.length;
-    const n = arr2.length;
-    const dp = Array(m + 1).fill(null).map(() => Array(n + 1).fill(0));
-    
-    for (let i = 1; i <= m; i++) {
-      for (let j = 1; j <= n; j++) {
-        if (arr1[i - 1] === arr2[j - 1]) {
-          dp[i][j] = dp[i - 1][j - 1] + 1;
-        } else {
-          dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
-        }
-      }
-    }
-    
-    const lcs = [];
-    let i = m, j = n;
-    while (i > 0 && j > 0) {
-      if (arr1[i - 1] === arr2[j - 1]) {
-        lcs.unshift(arr1[i - 1]);
-        i--; j--;
-      } else if (dp[i - 1][j] > dp[i][j - 1]) {
-        i--;
-      } else {
-        j--;
-      }
-    }
-    
-    return lcs;
+      `对比结果: ${added} 行新增, ${removed} 行删除`;
+    document.getElementById('diffResultPanel').style.display = 'block';
   }
 
   function clearDiff() {
     document.getElementById('diffInput1').value = '';
     document.getElementById('diffInput2').value = '';
-    document.getElementById('diffResultPanel').classList.remove('show');
+    document.getElementById('diffResultPanel').style.display = 'none';
+    document.getElementById('diff2htmlOutput').innerHTML = '';
     hideError('diffError');
   }
 
@@ -1535,7 +1490,7 @@
   }
 
   function closeDiffResult() {
-    document.getElementById('diffResultPanel').classList.remove('show');
+    document.getElementById('diffResultPanel').style.display = 'none';
   }
 
   init();
