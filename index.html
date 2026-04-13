@@ -899,9 +899,21 @@
     }
   }
 
+  function sortObjectKeys(obj) {
+    if (obj === null || typeof obj !== 'object') return obj;
+    if (Array.isArray(obj)) return obj.map(sortObjectKeys);
+    const sorted = {};
+    Object.keys(obj).sort().forEach(key => {
+      sorted[key] = sortObjectKeys(obj[key]);
+    });
+    return sorted;
+  }
+
   function computeDiffLines(obj1, obj2) {
-    const lines1 = JSON.stringify(obj1, null, 2).split('\n');
-    const lines2 = JSON.stringify(obj2, null, 2).split('\n');
+    const sorted1 = sortObjectKeys(obj1);
+    const sorted2 = sortObjectKeys(obj2);
+    const lines1 = JSON.stringify(sorted1, null, 2).split('\n');
+    const lines2 = JSON.stringify(sorted2, null, 2).split('\n');
     
     const left = [];
     const right = [];
