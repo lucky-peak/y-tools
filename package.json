@@ -1,0 +1,16 @@
+{
+  "name": "y-tools",
+  "version": "0.1.0",
+  "description": "A collection of developer tools",
+  "scripts": {
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build"
+  },
+  "keywords": ["developer-tools", "json", "yaml", "sql", "tauri"],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@tauri-apps/cli": "^1.5.0"
+  }
+}
