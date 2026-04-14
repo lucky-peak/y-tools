@@ -73,7 +73,8 @@ git push origin v0.1.0
 
 ```
 y-tools-1/
-├── index.html              # 前端页面
+├── dist/                   # 前端资源目录
+│   └── index.html          # 前端页面
 ├── package.json            # Node.js 配置
 ├── vercel.json             # Vercel 部署配置
 ├── src-tauri/              # Tauri 后端
