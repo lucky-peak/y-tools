@@ -178,16 +178,6 @@
       <button onclick="clearYamlTool()">清空</button>
     </div>
     <div id="yamlError" class="error"></div>
-    
-    <div class="snapshots" style="margin-top: 16px;">
-      <div class="snapshots-header">
-        <span>历史记录（最近10条，点击恢复）</span>
-        <button class="small" onclick="clearYamlHistory()">清空全部</button>
-      </div>
-      <div class="snapshots-tabs" id="yamlHistoryList">
-        <span class="snapshot-empty">暂无历史记录</span>
-      </div>
-    </div>
   </div>
 
   <div id="json" class="tool-container">
@@ -239,16 +229,6 @@
       <button onclick="clearJson()">清空</button>
     </div>
     <div id="jsonError" class="error"></div>
-    
-    <div class="snapshots" style="margin-top: 16px;">
-      <div class="snapshots-header">
-        <span>历史记录（最近10条，点击恢复）</span>
-        <button class="small" onclick="clearJsonHistory()">清空全部</button>
-      </div>
-      <div class="snapshots-tabs" id="jsonHistoryList">
-        <span class="snapshot-empty">暂无历史记录</span>
-      </div>
-    </div>
     
     <div class="snapshots">
       <div class="snapshots-header">
@@ -319,16 +299,6 @@
       </div>
       <div class="time-formats" id="dateResult"></div>
     </div>
-    
-    <div class="snapshots" style="margin-top: 16px;">
-      <div class="snapshots-header">
-        <span>历史记录（最近10条，点击恢复）</span>
-        <button class="small" onclick="clearTimestampHistory()">清空全部</button>
-      </div>
-      <div class="snapshots-tabs" id="timestampHistoryList">
-        <span class="snapshot-empty">暂无历史记录</span>
-      </div>
-    </div>
   </div>
 
   <div id="sql" class="tool-container">
@@ -369,16 +339,6 @@
       <button onclick="clearSql()">清空</button>
     </div>
     <div id="sqlError" class="error"></div>
-    
-    <div class="snapshots" style="margin-top: 16px;">
-      <div class="snapshots-header">
-        <span>历史记录（最近10条，点击恢复）</span>
-        <button class="small" onclick="clearSqlHistory()">清空全部</button>
-      </div>
-      <div class="snapshots-tabs" id="sqlHistoryList">
-        <span class="snapshot-empty">暂无历史记录</span>
-      </div>
-    </div>
     
     <div class="snapshots" style="margin-top: 16px;">
       <div class="snapshots-header">
@@ -445,16 +405,6 @@
       </select>
     </div>
     <div id="diffError" class="error"></div>
-    
-    <div class="snapshots" style="margin-top: 16px;">
-      <div class="snapshots-header">
-        <span>历史记录（最近10条，点击恢复）</span>
-        <button class="small" onclick="clearDiffHistory()">清空全部</button>
-      </div>
-      <div class="snapshots-tabs" id="diffHistoryList">
-        <span class="snapshot-empty">暂无历史记录</span>
-      </div>
-    </div>
     
     <div class="diff2html-container" id="diffResultPanel" style="display: none;">
       <div class="diff-header" style="padding: 8px 12px; background: #f5f5f5; border-bottom: 1px solid #e0e0e0; display: flex; justify-content: space-between; align-items: center;">
@@ -580,16 +530,7 @@
     initTimestamp();
     initDragDrop();
     document.getElementById('jsonInput').addEventListener('input', debounce(autoFormat, 300));
-    loadYamlHistory();
-    renderYamlHistory();
-    loadJsonHistory();
-    renderJsonHistory();
-    loadSqlHistory();
-    renderSqlHistory();
-    loadDiffHistory();
-    renderDiffHistory();
-    loadTimestampHistory();
-    renderTimestampHistory();
+    initUndoRedo();
   }
 
   function initDragDrop() {
@@ -877,13 +818,11 @@
       const obj = parseProps(input);
       const output = jsyaml.dump(unflatten(obj), { indent: 2, lineWidth: -1 });
       document.getElementById('yamlOutput').value = output;
-      saveYamlHistory(input, output, '转YAML');
     } catch (e) {
       try {
         const doc = jsyaml.load(input);
         const output = jsyaml.dump(doc, { indent: 2, lineWidth: -1 });
         document.getElementById('yamlOutput').value = output;
-        saveYamlHistory(input, output, '转YAML');
       } catch (e2) {
         showError('yamlError', '解析错误: 无法识别格式');
       }
@@ -902,7 +841,6 @@
         .map(([k, v]) => `${k}=${String(v).replace(/\\/g, '\\\\').replace(/\n/g, '\\n')}`)
         .join('\n');
       document.getElementById('yamlOutput').value = output;
-      saveYamlHistory(input, output, '转Properties');
     } catch (e) {
       try {
         const obj = parseProps(input);
@@ -911,7 +849,6 @@
           .map(([k, v]) => `${k}=${String(v).replace(/\\/g, '\\\\').replace(/\n/g, '\\n')}`)
           .join('\n');
         document.getElementById('yamlOutput').value = output;
-        saveYamlHistory(input, output, '转Properties');
       } catch (e2) {
         showError('yamlError', '解析错误: 无法识别格式');
       }
@@ -924,68 +861,6 @@
     hideError('yamlError');
   }
 
-  let yamlHistory = [];
-
-  function loadYamlHistory() {
-    yamlHistory = JSON.parse(localStorage.getItem('yaml_history') || '[]');
-  }
-
-  function saveYamlHistoryToStorage() {
-    localStorage.setItem('yaml_history', JSON.stringify(yamlHistory));
-  }
-
-  function renderYamlHistory() {
-    const list = document.getElementById('yamlHistoryList');
-    if (!yamlHistory.length) {
-      list.innerHTML = '<span class="snapshot-empty">暂无历史记录</span>';
-      return;
-    }
-    list.innerHTML = yamlHistory.map((h, i) => `
-      <div class="snapshot-tab" onclick="loadYamlHistoryItem(${i})" title="${escapeHtml(h.input.substring(0, 100))}">
-        <span>${escapeHtml(h.name)}</span>
-        <span class="close" onclick="event.stopPropagation(); deleteYamlHistoryItem(${i})">×</span>
-      </div>
-    `).join('');
-  }
-
-  function saveYamlHistory(input, output, type) {
-    if (!input.trim()) return;
-    
-    const name = `${type} - ${new Date().toLocaleString()}`;
-    yamlHistory.unshift({ name, input, output, type, time: Date.now() });
-    
-    if (yamlHistory.length > 10) {
-      yamlHistory = yamlHistory.slice(0, 10);
-    }
-    
-    saveYamlHistoryToStorage();
-    renderYamlHistory();
-  }
-
-  function loadYamlHistoryItem(index) {
-    const h = yamlHistory[index];
-    if (h) {
-      document.getElementById('yamlInput').value = h.input;
-      document.getElementById('yamlOutput').value = h.output || '';
-      showToast('已加载历史记录');
-    }
-  }
-
-  function deleteYamlHistoryItem(index) {
-    yamlHistory.splice(index, 1);
-    saveYamlHistoryToStorage();
-    renderYamlHistory();
-    showToast('历史记录已删除');
-  }
-
-  function clearYamlHistory() {
-    if (confirm('清空所有历史记录？')) {
-      yamlHistory = [];
-      saveYamlHistoryToStorage();
-      renderYamlHistory();
-    }
-  }
-
   function jsonFormat() {
     hideError('jsonError');
     try {
@@ -994,7 +869,6 @@
       const output = JSON.stringify(parsed, null, 2);
       document.getElementById('jsonInput').value = output;
       jsonEditor.set(parsed);
-      saveJsonHistory(input, output, '格式化');
     } catch (e) { showError('jsonError', 'JSON 解析错误: ' + e.message); }
   }
 
@@ -1005,7 +879,6 @@
       const parsed = JSON.parse(input);
       const output = JSON.stringify(parsed);
       document.getElementById('jsonInput').value = output;
-      saveJsonHistory(input, output, '压缩');
     } catch (e) { showError('jsonError', 'JSON 解析错误: ' + e.message); }
   }
 
@@ -1014,7 +887,6 @@
     const input = document.getElementById('jsonInput').value;
     const output = JSON.stringify(input).slice(1, -1);
     document.getElementById('jsonInput').value = output;
-    saveJsonHistory(input, output, '转义');
   }
 
   function jsonUnescape() {
@@ -1026,7 +898,6 @@
         const output = JSON.stringify(parsed, null, 2);
         document.getElementById('jsonInput').value = output;
         jsonEditor.set(parsed);
-        saveJsonHistory(input, output, '去转义');
         return;
       } catch (e) {}
       
@@ -1043,10 +914,8 @@
         const output = JSON.stringify(parsed, null, 2);
         document.getElementById('jsonInput').value = output;
         jsonEditor.set(parsed);
-        saveJsonHistory(input, output, '去转义');
       } catch (e) {
         document.getElementById('jsonInput').value = processed;
-        saveJsonHistory(input, processed, '去转义');
       }
     } catch (e) { showError('jsonError', '去转义错误: ' + e.message); }
   }
@@ -1070,72 +939,6 @@
     document.getElementById('jsonInput').value = '';
     jsonEditor.set({});
     hideError('jsonError');
-  }
-
-  let jsonHistory = [];
-
-  function loadJsonHistory() {
-    jsonHistory = JSON.parse(localStorage.getItem('json_history') || '[]');
-  }
-
-  function saveJsonHistoryToStorage() {
-    localStorage.setItem('json_history', JSON.stringify(jsonHistory));
-  }
-
-  function renderJsonHistory() {
-    const list = document.getElementById('jsonHistoryList');
-    if (!jsonHistory.length) {
-      list.innerHTML = '<span class="snapshot-empty">暂无历史记录</span>';
-      return;
-    }
-    list.innerHTML = jsonHistory.map((h, i) => `
-      <div class="snapshot-tab" onclick="loadJsonHistoryItem(${i})" title="${escapeHtml(h.input.substring(0, 100))}">
-        <span>${escapeHtml(h.name)}</span>
-        <span class="close" onclick="event.stopPropagation(); deleteJsonHistoryItem(${i})">×</span>
-      </div>
-    `).join('');
-  }
-
-  function saveJsonHistory(input, output, type) {
-    if (!input.trim()) return;
-    
-    const name = `${type} - ${new Date().toLocaleString()}`;
-    jsonHistory.unshift({ name, input, output, type, time: Date.now() });
-    
-    if (jsonHistory.length > 10) {
-      jsonHistory = jsonHistory.slice(0, 10);
-    }
-    
-    saveJsonHistoryToStorage();
-    renderJsonHistory();
-  }
-
-  function loadJsonHistoryItem(index) {
-    const h = jsonHistory[index];
-    if (h) {
-      document.getElementById('jsonInput').value = h.input;
-      try {
-        jsonEditor.set(JSON.parse(h.output || h.input));
-      } catch (e) {
-        jsonEditor.set({});
-      }
-      showToast('已加载历史记录');
-    }
-  }
-
-  function deleteJsonHistoryItem(index) {
-    jsonHistory.splice(index, 1);
-    saveJsonHistoryToStorage();
-    renderJsonHistory();
-    showToast('历史记录已删除');
-  }
-
-  function clearJsonHistory() {
-    if (confirm('清空所有历史记录？')) {
-      jsonHistory = [];
-      saveJsonHistoryToStorage();
-      renderJsonHistory();
-    }
   }
 
   function copy(id) {
@@ -1357,8 +1160,6 @@
       <div class="time-format"><div class="content"><div class="label">时间</div><div class="value">${date.toLocaleTimeString()}</div></div><button class="copy-btn" onclick="copyText('${date.toLocaleTimeString()}')">复制</button></div>
       <div class="time-format"><div class="content"><div class="label">毫秒戳</div><div class="value">${ts * 1000}</div></div><button class="copy-btn" onclick="copyText('${ts * 1000}')">复制</button></div>
     `;
-    
-    saveTimestampHistory(input, '时间戳转日期', date.toLocaleString());
   }
 
   function setNow() {
@@ -1382,80 +1183,11 @@
       <div class="time-format"><div class="content"><div class="label">ISO 8601</div><div class="value">${date.toISOString()}</div></div><button class="copy-btn" onclick="copyText('${date.toISOString()}')">复制</button></div>
       <div class="time-format"><div class="content"><div class="label">UTC</div><div class="value">${date.toUTCString()}</div></div><button class="copy-btn" onclick="copyText('${date.toUTCString()}')">复制</button></div>
     `;
-    
-    saveTimestampHistory(input, '日期转时间戳', ts.toString());
   }
 
   function copyText(text) {
     navigator.clipboard.writeText(text);
     showToast('已复制');
-  }
-
-  let timestampHistory = [];
-
-  function loadTimestampHistory() {
-    timestampHistory = JSON.parse(localStorage.getItem('timestamp_history') || '[]');
-  }
-
-  function saveTimestampHistoryToStorage() {
-    localStorage.setItem('timestamp_history', JSON.stringify(timestampHistory));
-  }
-
-  function renderTimestampHistory() {
-    const list = document.getElementById('timestampHistoryList');
-    if (!timestampHistory.length) {
-      list.innerHTML = '<span class="snapshot-empty">暂无历史记录</span>';
-      return;
-    }
-    list.innerHTML = timestampHistory.map((h, i) => `
-      <div class="snapshot-tab" onclick="loadTimestampHistoryItem(${i})" title="${escapeHtml(h.name)}">
-        <span>${escapeHtml(h.name)}</span>
-        <span class="close" onclick="event.stopPropagation(); deleteTimestampHistoryItem(${i})">×</span>
-      </div>
-    `).join('');
-  }
-
-  function saveTimestampHistory(input, type, result) {
-    if (!input.trim()) return;
-    
-    const name = `${type} - ${new Date().toLocaleString()}`;
-    timestampHistory.unshift({ name, input, type, result, time: Date.now() });
-    
-    if (timestampHistory.length > 10) {
-      timestampHistory = timestampHistory.slice(0, 10);
-    }
-    
-    saveTimestampHistoryToStorage();
-    renderTimestampHistory();
-  }
-
-  function loadTimestampHistoryItem(index) {
-    const h = timestampHistory[index];
-    if (h) {
-      if (h.type === '时间戳转日期') {
-        document.getElementById('timestampInput').value = h.input;
-        timestampToDate();
-      } else {
-        document.getElementById('dateInput').value = h.input;
-        dateToTimestamp();
-      }
-      showToast('已加载历史记录');
-    }
-  }
-
-  function deleteTimestampHistoryItem(index) {
-    timestampHistory.splice(index, 1);
-    saveTimestampHistoryToStorage();
-    renderTimestampHistory();
-    showToast('历史记录已删除');
-  }
-
-  function clearTimestampHistory() {
-    if (confirm('清空所有历史记录？')) {
-      timestampHistory = [];
-      saveTimestampHistoryToStorage();
-      renderTimestampHistory();
-    }
   }
 
   let sqlSnapshots = [];
@@ -1469,7 +1201,6 @@
       const dialect = document.getElementById('sqlDialect').value;
       const output = sqlFormatter.format(input, { language: dialect });
       document.getElementById('sqlOutput').value = output;
-      saveSqlHistory(input, output, '格式化');
     } catch (e) {
       showError('sqlError', 'SQL 格式化错误: ' + e.message);
     }
@@ -1488,7 +1219,6 @@
         .replace(/\s*\)\s*/g, ')')
         .trim();
       document.getElementById('sqlOutput').value = output;
-      saveSqlHistory(input, output, '压缩');
     } catch (e) {
       showError('sqlError', 'SQL 压缩错误: ' + e.message);
     }
@@ -1513,68 +1243,6 @@
     document.getElementById('sqlOutput').value = '';
     document.getElementById('sqlAnalysisResult').innerHTML = '<span style="color: #999; font-size: 13px;">输入 SQL 后点击"分析 SQL"查看结果</span>';
     hideError('sqlError');
-  }
-
-  let sqlHistory = [];
-
-  function loadSqlHistory() {
-    sqlHistory = JSON.parse(localStorage.getItem('sql_tool_history') || '[]');
-  }
-
-  function saveSqlHistoryToStorage() {
-    localStorage.setItem('sql_tool_history', JSON.stringify(sqlHistory));
-  }
-
-  function renderSqlHistory() {
-    const list = document.getElementById('sqlHistoryList');
-    if (!sqlHistory.length) {
-      list.innerHTML = '<span class="snapshot-empty">暂无历史记录</span>';
-      return;
-    }
-    list.innerHTML = sqlHistory.map((h, i) => `
-      <div class="snapshot-tab" onclick="loadSqlHistoryItem(${i})" title="${escapeHtml(h.input.substring(0, 100))}">
-        <span>${escapeHtml(h.name)}</span>
-        <span class="close" onclick="event.stopPropagation(); deleteSqlHistoryItem(${i})">×</span>
-      </div>
-    `).join('');
-  }
-
-  function saveSqlHistory(input, output, type) {
-    if (!input.trim()) return;
-    
-    const name = `${type} - ${new Date().toLocaleString()}`;
-    sqlHistory.unshift({ name, input, output, type, time: Date.now() });
-    
-    if (sqlHistory.length > 10) {
-      sqlHistory = sqlHistory.slice(0, 10);
-    }
-    
-    saveSqlHistoryToStorage();
-    renderSqlHistory();
-  }
-
-  function loadSqlHistoryItem(index) {
-    const h = sqlHistory[index];
-    if (h) {
-      document.getElementById('sqlInput').value = h.input;
-      document.getElementById('sqlOutput').value = h.output || '';
-      showToast('已加载历史记录');
-    }
-  }
-
-  function deleteSqlHistoryItem(index) {
-    sqlHistory.splice(index, 1);
-    saveSqlHistoryToStorage();
-    renderSqlHistory();
-    showToast('历史记录已删除');
-  }
-
-  function clearSqlHistory() {
-    if (confirm('清空所有历史记录？')) {
-      sqlHistory = [];
-      saveSqlHistoryToStorage();
-      renderSqlHistory();
-    }
   }
 
   function loadSqlSnapshots() {
@@ -1792,8 +1460,6 @@
       return;
     }
     
-    saveDiffHistory(text1, text2);
-    
     const viewType = document.getElementById('diffViewType').value;
     
     const diff = Diff.createTwoFilesPatch('原始文本', '修改后文本', text1, text2);
@@ -1839,66 +1505,49 @@
     document.getElementById('diffResultPanel').style.display = 'none';
   }
 
-  let diffHistory = [];
-
-  function loadDiffHistory() {
-    diffHistory = JSON.parse(localStorage.getItem('diff_history') || '[]');
-  }
-
-  function saveDiffHistoryToStorage() {
-    localStorage.setItem('diff_history', JSON.stringify(diffHistory));
-  }
-
-  function renderDiffHistory() {
-    const list = document.getElementById('diffHistoryList');
-    if (!diffHistory.length) {
-      list.innerHTML = '<span class="snapshot-empty">暂无历史记录</span>';
-      return;
-    }
-    list.innerHTML = diffHistory.map((h, i) => `
-      <div class="snapshot-tab" onclick="loadDiffHistoryItem(${i})" title="${escapeHtml(h.name)}">
-        <span>${escapeHtml(h.name)}</span>
-        <span class="close" onclick="event.stopPropagation(); deleteDiffHistoryItem(${i})">×</span>
-      </div>
-    `).join('');
-  }
-
-  function saveDiffHistory(input1, input2) {
-    if (!input1.trim() && !input2.trim()) return;
-    
-    const name = `对比 - ${new Date().toLocaleString()}`;
-    diffHistory.unshift({ name, input1, input2, time: Date.now() });
-    
-    if (diffHistory.length > 10) {
-      diffHistory = diffHistory.slice(0, 10);
-    }
-    
-    saveDiffHistoryToStorage();
-    renderDiffHistory();
-  }
-
-  function loadDiffHistoryItem(index) {
-    const h = diffHistory[index];
-    if (h) {
-      document.getElementById('diffInput1').value = h.input1 || '';
-      document.getElementById('diffInput2').value = h.input2 || '';
-      showToast('已加载历史记录');
-    }
-  }
-
-  function deleteDiffHistoryItem(index) {
-    diffHistory.splice(index, 1);
-    saveDiffHistoryToStorage();
-    renderDiffHistory();
-    showToast('历史记录已删除');
-  }
-
-  function clearDiffHistory() {
-    if (confirm('清空所有历史记录？')) {
-      diffHistory = [];
-      saveDiffHistoryToStorage();
-      renderDiffHistory();
-    }
+  function initUndoRedo() {
+    const textareas = document.querySelectorAll('textarea');
+    textareas.forEach(textarea => {
+      const history = {
+        stack: [textarea.value],
+        pointer: 0,
+        maxStack: 50
+      };
+      
+      textarea.addEventListener('input', debounce(() => {
+        if (history.pointer < history.stack.length - 1) {
+          history.stack = history.stack.slice(0, history.pointer + 1);
+        }
+        
+        history.stack.push(textarea.value);
+        
+        if (history.stack.length > history.maxStack) {
+          history.stack.shift();
+        } else {
+          history.pointer++;
+        }
+      }, 300));
+      
+      textarea.addEventListener('keydown', e => {
+        if ((e.metaKey || e.ctrlKey) && e.key === 'z') {
+          e.preventDefault();
+          
+          if (e.shiftKey) {
+            if (history.pointer < history.stack.length - 1) {
+              history.pointer++;
+              textarea.value = history.stack[history.pointer];
+              textarea.dispatchEvent(new Event('input'));
+            }
+          } else {
+            if (history.pointer > 0) {
+              history.pointer--;
+              textarea.value = history.stack[history.pointer];
+              textarea.dispatchEvent(new Event('input'));
+            }
+          }
+        }
+      });
+    });
   }
 
   init();
