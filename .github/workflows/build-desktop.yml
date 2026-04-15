@@ -46,9 +46,7 @@ jobs:
         run: npm install
 
       - name: Generate app icon
-        run: |
-          mkdir -p src-tauri/icons
-          python3 scripts/generate_icon.py
+        run: python3 scripts/generate_icon.py
 
       - uses: tauri-apps/tauri-action@v0
         env:

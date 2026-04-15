@@ -1,5 +1,6 @@
 import struct
 import zlib
+import os
 
 def create_png(width, height, color):
     signature = b'\x89PNG\r\n\x1a\n'
@@ -23,6 +24,7 @@ def create_png(width, height, color):
     
     return signature + ihdr + idat + iend
 
+os.makedirs('src-tauri/icons', exist_ok=True)
 png_data = create_png(512, 512, '#333333')
 with open('src-tauri/icons/icon.png', 'wb') as f:
     f.write(png_data)

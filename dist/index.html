@@ -18,6 +18,18 @@
     .header { border-bottom: 1px solid #e0e0e0; padding: 10px 20px; position: sticky; top: 0; background: #fff; z-index: 100; }
     .header-inner { margin: 0 auto; }
     
+    .header-row { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+    .search-box { flex: 1; max-width: 400px; position: relative; }
+    .search-input { width: 100%; padding: 6px 12px 6px 32px; border: 1px solid #e0e0e0; border-radius: 4px; font-size: 13px; outline: none; }
+    .search-input:focus { border-color: #999; }
+    .search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #999; font-size: 14px; pointer-events: none; }
+    .search-results { position: absolute; top: 100%; left: 0; right: 0; background: #fff; border: 1px solid #e0e0e0; border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-height: 300px; overflow-y: auto; display: none; z-index: 200; }
+    .search-results.show { display: block; }
+    .search-result-item { padding: 8px 12px; cursor: pointer; font-size: 13px; border-bottom: 1px solid #f0f0f0; }
+    .search-result-item:last-child { border-bottom: none; }
+    .search-result-item:hover { background: #f5f5f5; }
+    .search-result-item .highlight { background: #ffeb3b; padding: 0 2px; border-radius: 2px; }
+    
     .tools-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
     .tool-btn { padding: 6px 14px; border: 1px solid #e0e0e0; background: #fff; border-radius: 4px; cursor: pointer; font-size: 13px; color: #333; text-decoration: none; }
     .tool-btn:hover { background: #f5f5f5; }
@@ -131,6 +143,25 @@
     .time-format .copy-btn { padding: 4px 8px; font-size: 11px; flex-shrink: 0; }
     .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #333; color: #fff; padding: 8px 16px; border-radius: 4px; font-size: 13px; z-index: 1000; }
     
+    .content-search { position: fixed; top: 60px; right: 20px; background: #fff; border: 1px solid #e0e0e0; border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); padding: 12px; z-index: 1000; display: none; min-width: 300px; }
+    .content-search.show { display: block; }
+    .content-search-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .content-search-title { font-size: 13px; font-weight: 600; }
+    .content-search-close { background: none; border: none; cursor: pointer; font-size: 18px; color: #999; padding: 0; line-height: 1; }
+    .content-search-close:hover { color: #333; }
+    .content-search-input { display: flex; gap: 8px; margin-bottom: 8px; }
+    .content-search-input input { flex: 1; padding: 6px 10px; border: 1px solid #e0e0e0; border-radius: 4px; font-size: 13px; outline: none; }
+    .content-search-input input:focus { border-color: #999; }
+    .content-search-input button { padding: 6px 10px; border: 1px solid #e0e0e0; background: #fff; border-radius: 4px; cursor: pointer; font-size: 13px; }
+    .content-search-input button:hover { background: #f5f5f5; }
+    .content-search-input button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .content-search-options { display: flex; gap: 12px; font-size: 12px; color: #666; }
+    .content-search-options label { display: flex; align-items: center; gap: 4px; cursor: pointer; }
+    .content-search-options input[type="checkbox"] { margin: 0; }
+    .content-search-info { font-size: 12px; color: #666; margin-top: 8px; }
+    .content-search-highlight { background: #ffeb3b; }
+    .content-search-highlight.current { background: #ff9800; color: #fff; }
+    
     .diff2html-container { margin-top: 16px; border: 1px solid #e0e0e0; border-radius: 4px; overflow: hidden; }
     .diff2html-container .d2h-wrapper { background: #fff; }
     .diff2html-container .d2h-file-header { background: #f5f5f5; border-bottom: 1px solid #e0e0e0; }
@@ -147,8 +178,31 @@
 </head>
 <body>
 
+<div class="content-search" id="contentSearchPanel">
+  <div class="content-search-header">
+    <span class="content-search-title">内容搜索</span>
+    <button class="content-search-close" onclick="closeContentSearch()">×</button>
+  </div>
+  <div class="content-search-input">
+    <input type="text" id="contentSearchInput" placeholder="输入搜索内容...">
+    <button onclick="doContentSearch()">搜索</button>
+  </div>
+  <div class="content-search-options">
+    <label><input type="checkbox" id="contentSearchCase" onchange="doContentSearch()"> 区分大小写</label>
+    <label><input type="checkbox" id="contentSearchRegex" onchange="doContentSearch()"> 正则表达式</label>
+  </div>
+  <div class="content-search-info" id="contentSearchInfo"></div>
+</div>
+
 <div class="header">
   <div class="header-inner">
+    <div class="header-row">
+      <div class="search-box">
+        <span class="search-icon">🔍</span>
+        <input type="text" class="search-input" id="toolSearch" placeholder="搜索工具... (Ctrl+K)" autocomplete="off">
+        <div class="search-results" id="searchResults"></div>
+      </div>
+    </div>
     <div class="tools-bar" id="toolsBar"></div>
   </div>
 </div>
@@ -440,6 +494,12 @@
   let selectedSnapshots = [];
   let currentTool = null;
   let jsonPanelState = { input: true, output: true };
+  let contentSearchState = {
+    textarea: null,
+    matches: [],
+    currentIndex: -1,
+    lastQuery: ''
+  };
 
   function toggleJsonPanel(panel) {
     jsonPanelState[panel] = !jsonPanelState[panel];
@@ -529,8 +589,274 @@
     renderSqlSnapshots();
     initTimestamp();
     initDragDrop();
+    initToolSearch();
+    initContentSearch();
     document.getElementById('jsonInput').addEventListener('input', debounce(autoFormat, 300));
     initUndoRedo();
+  }
+
+  function initToolSearch() {
+    const searchInput = document.getElementById('toolSearch');
+    const searchResults = document.getElementById('searchResults');
+    let selectedIndex = -1;
+
+    searchInput.addEventListener('input', (e) => {
+      const query = e.target.value.trim().toLowerCase();
+      if (!query) {
+        searchResults.classList.remove('show');
+        return;
+      }
+
+      const results = tools.filter(t => 
+        t.name.toLowerCase().includes(query) || 
+        t.category.toLowerCase().includes(query) ||
+        t.id.toLowerCase().includes(query)
+      );
+
+      if (results.length === 0) {
+        searchResults.innerHTML = '<div class="search-result-item" style="color: #999;">未找到相关工具</div>';
+        searchResults.classList.add('show');
+        return;
+      }
+
+      searchResults.innerHTML = results.map((t, i) => {
+        const name = t.name.replace(new RegExp(`(${query})`, 'gi'), '<span class="highlight">$1</span>');
+        return `<div class="search-result-item" data-tool="${t.id}" data-index="${i}">
+          <div><strong>${name}</strong></div>
+          <div style="font-size: 11px; color: #999; margin-top: 2px;">${t.category}</div>
+        </div>`;
+      }).join('');
+      
+      searchResults.classList.add('show');
+      selectedIndex = -1;
+    });
+
+    searchInput.addEventListener('keydown', (e) => {
+      const items = searchResults.querySelectorAll('.search-result-item');
+      if (!items.length) return;
+
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        selectedIndex = Math.min(selectedIndex + 1, items.length - 1);
+        updateSelection(items);
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        selectedIndex = Math.max(selectedIndex - 1, 0);
+        updateSelection(items);
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (selectedIndex >= 0 && items[selectedIndex]) {
+          const toolId = items[selectedIndex].dataset.tool;
+          selectTool(toolId);
+        } else if (items.length === 1) {
+          const toolId = items[0].dataset.tool;
+          selectTool(toolId);
+        }
+      } else if (e.key === 'Escape') {
+        searchResults.classList.remove('show');
+        searchInput.blur();
+      }
+    });
+
+    function updateSelection(items) {
+      items.forEach((item, i) => {
+        item.style.background = i === selectedIndex ? '#f0f0f0' : '';
+      });
+    }
+
+    searchResults.addEventListener('click', (e) => {
+      const item = e.target.closest('.search-result-item');
+      if (item && item.dataset.tool) {
+        selectTool(item.dataset.tool);
+      }
+    });
+
+    function selectTool(toolId) {
+      location.hash = toolId;
+      searchInput.value = '';
+      searchResults.classList.remove('show');
+    }
+
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.search-box')) {
+        searchResults.classList.remove('show');
+      }
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        searchInput.focus();
+        searchInput.select();
+      }
+    });
+  }
+
+  function initContentSearch() {
+    const textareas = document.querySelectorAll('textarea');
+    textareas.forEach(textarea => {
+      textarea.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+          e.preventDefault();
+          openContentSearch(textarea);
+        }
+      });
+    });
+
+    const searchInput = document.getElementById('contentSearchInput');
+    searchInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        if (e.shiftKey) {
+          navigateContentSearch(-1);
+        } else {
+          navigateContentSearch(1);
+        }
+      } else if (e.key === 'Escape') {
+        closeContentSearch();
+      }
+    });
+
+    searchInput.addEventListener('input', debounce(() => {
+      doContentSearch();
+    }, 300));
+
+    document.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'f' && currentTool) {
+        e.preventDefault();
+        const activeTextarea = document.querySelector('.tool-container.active textarea');
+        if (activeTextarea) {
+          openContentSearch(activeTextarea);
+        }
+      }
+      
+      if (e.key === 'F3' || ((e.ctrlKey || e.metaKey) && e.key === 'g')) {
+        e.preventDefault();
+        if (contentSearchState.textarea) {
+          navigateContentSearch(e.shiftKey ? -1 : 1);
+        }
+      }
+    });
+  }
+
+  function openContentSearch(textarea) {
+    contentSearchState.textarea = textarea;
+    const panel = document.getElementById('contentSearchPanel');
+    const input = document.getElementById('contentSearchInput');
+    
+    panel.classList.add('show');
+    input.focus();
+    input.select();
+    
+    const selectedText = textarea.value.substring(textarea.selectionStart, textarea.selectionEnd);
+    if (selectedText) {
+      input.value = selectedText;
+      doContentSearch();
+    }
+  }
+
+  function closeContentSearch() {
+    const panel = document.getElementById('contentSearchPanel');
+    panel.classList.remove('show');
+    clearContentSearchHighlights();
+    contentSearchState = {
+      textarea: null,
+      matches: [],
+      currentIndex: -1,
+      lastQuery: ''
+    };
+  }
+
+  function doContentSearch() {
+    const query = document.getElementById('contentSearchInput').value;
+    if (!query || !contentSearchState.textarea) {
+      clearContentSearchHighlights();
+      updateContentSearchInfo(0, 0);
+      return;
+    }
+
+    const textarea = contentSearchState.textarea;
+    const text = textarea.value;
+    const caseSensitive = document.getElementById('contentSearchCase').checked;
+    const useRegex = document.getElementById('contentSearchRegex').checked;
+
+    let matches = [];
+    try {
+      let searchRegex;
+      if (useRegex) {
+        searchRegex = new RegExp(query, caseSensitive ? 'g' : 'gi');
+      } else {
+        const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        searchRegex = new RegExp(escapedQuery, caseSensitive ? 'g' : 'gi');
+      }
+
+      let match;
+      while ((match = searchRegex.exec(text)) !== null) {
+        matches.push({
+          start: match.index,
+          end: match.index + match[0].length,
+          text: match[0]
+        });
+      }
+    } catch (e) {
+      updateContentSearchInfo(0, 0, '正则表达式错误');
+      return;
+    }
+
+    contentSearchState.matches = matches;
+    contentSearchState.lastQuery = query;
+
+    if (matches.length > 0) {
+      contentSearchState.currentIndex = 0;
+      scrollToContentMatch(0);
+    } else {
+      contentSearchState.currentIndex = -1;
+    }
+
+    updateContentSearchInfo(contentSearchState.currentIndex + 1, matches.length);
+  }
+
+  function navigateContentSearch(direction) {
+    const { matches } = contentSearchState;
+    if (matches.length === 0) return;
+
+    let newIndex = contentSearchState.currentIndex + direction;
+    if (newIndex >= matches.length) newIndex = 0;
+    if (newIndex < 0) newIndex = matches.length - 1;
+
+    contentSearchState.currentIndex = newIndex;
+    scrollToContentMatch(newIndex);
+    updateContentSearchInfo(newIndex + 1, matches.length);
+  }
+
+  function scrollToContentMatch(index) {
+    const textarea = contentSearchState.textarea;
+    const match = contentSearchState.matches[index];
+    if (!textarea || !match) return;
+
+    textarea.focus();
+    textarea.setSelectionRange(match.start, match.end);
+
+    const textBefore = textarea.value.substring(0, match.start);
+    const lines = textBefore.split('\n');
+    const lineNumber = lines.length;
+    const lineHeight = parseInt(getComputedStyle(textarea).lineHeight) || 18;
+    const scrollTop = (lineNumber - 5) * lineHeight;
+    textarea.scrollTop = Math.max(0, scrollTop);
+  }
+
+  function clearContentSearchHighlights() {
+  }
+
+  function updateContentSearchInfo(current, total, error) {
+    const info = document.getElementById('contentSearchInfo');
+    if (error) {
+      info.textContent = error;
+      info.style.color = '#c00';
+    } else {
+      info.textContent = total > 0 ? `${current} / ${total} 个匹配` : '未找到匹配';
+      info.style.color = '#666';
+    }
   }
 
   function initDragDrop() {
