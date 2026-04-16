@@ -16,21 +16,20 @@
     body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #fff; }
     
     .header { border-bottom: 1px solid #e0e0e0; padding: 10px 20px; position: sticky; top: 0; background: #fff; z-index: 100; }
-    .header-inner { margin: 0 auto; }
+    .header-inner { margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
     
-    .header-row { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
-    .search-box { flex: 1; max-width: 400px; position: relative; }
+    .tools-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; flex: 1; }
+    
+    .search-box { position: relative; width: 240px; flex-shrink: 0; }
     .search-input { width: 100%; padding: 6px 12px 6px 32px; border: 1px solid #e0e0e0; border-radius: 4px; font-size: 13px; outline: none; }
     .search-input:focus { border-color: #999; }
     .search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #999; font-size: 14px; pointer-events: none; }
-    .search-results { position: absolute; top: 100%; left: 0; right: 0; background: #fff; border: 1px solid #e0e0e0; border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-height: 300px; overflow-y: auto; display: none; z-index: 200; }
+    .search-results { position: absolute; top: 100%; left: 0; right: 0; background: #fff; border: 1px solid #e0e0e0; border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-height: 300px; overflow-y: auto; display: none; z-index: 200; margin-top: 4px; }
     .search-results.show { display: block; }
     .search-result-item { padding: 8px 12px; cursor: pointer; font-size: 13px; border-bottom: 1px solid #f0f0f0; }
     .search-result-item:last-child { border-bottom: none; }
     .search-result-item:hover { background: #f5f5f5; }
     .search-result-item .highlight { background: #ffeb3b; padding: 0 2px; border-radius: 2px; }
-    
-    .tools-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
     .tool-btn { padding: 6px 14px; border: 1px solid #e0e0e0; background: #fff; border-radius: 4px; cursor: pointer; font-size: 13px; color: #333; text-decoration: none; }
     .tool-btn:hover { background: #f5f5f5; }
     .tool-btn.active { background: #333; color: #fff; border-color: #333; }
@@ -196,14 +195,12 @@
 
 <div class="header">
   <div class="header-inner">
-    <div class="header-row">
-      <div class="search-box">
-        <span class="search-icon">🔍</span>
-        <input type="text" class="search-input" id="toolSearch" placeholder="搜索工具... (Ctrl+K)" autocomplete="off">
-        <div class="search-results" id="searchResults"></div>
-      </div>
-    </div>
     <div class="tools-bar" id="toolsBar"></div>
+    <div class="search-box">
+      <span class="search-icon">🔍</span>
+      <input type="text" class="search-input" id="toolSearch" placeholder="搜索工具... (Ctrl+K)" autocomplete="off">
+      <div class="search-results" id="searchResults"></div>
+    </div>
   </div>
 </div>
 
