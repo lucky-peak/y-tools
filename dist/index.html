@@ -79,8 +79,16 @@
     .collapsed-bar:hover { background: #eee; }
     .collapsed-bar.show { display: flex; justify-content: space-between; align-items: center; }
     
-    textarea { width: 100%; height: 100%; min-height: 350px; border: none; padding: 12px; font-family: Menlo, Monaco, monospace; font-size: 13px; resize: none; outline: none; user-select: text; flex: 1; }
-    textarea:focus { background: #fafafa; }
+    textarea { width: 100%; height: 100%; min-height: 350px; border: none; padding: 12px; font-family: Menlo, Monaco, monospace; font-size: 13px; line-height: 1.4; resize: none; outline: none; user-select: text; flex: 1; background: transparent; position: relative; z-index: 2; margin: 0; box-sizing: border-box; }
+    textarea:focus { background: transparent; }
+    
+    .textarea-wrapper { position: relative; flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    .textarea-highlight { position: absolute; top: 0; left: 0; right: 0; bottom: 0; padding: 12px; font-family: Menlo, Monaco, monospace; font-size: 13px; line-height: 1.4; white-space: pre-wrap; word-wrap: break-word; overflow: auto; pointer-events: none; z-index: 1; color: transparent; background: #fff; margin: 0; border: none; box-sizing: border-box; scrollbar-width: thin; scrollbar-color: transparent transparent; }
+    .textarea-highlight::-webkit-scrollbar { width: 8px; height: 8px; }
+    .textarea-highlight::-webkit-scrollbar-track { background: transparent; }
+    .textarea-highlight::-webkit-scrollbar-thumb { background: transparent; }
+    .textarea-highlight .highlight-mark { background: rgba(255, 235, 59, 0.4); border-radius: 2px; }
+    .textarea-highlight .highlight-mark.current { background: rgba(255, 152, 0, 0.5); }
     
     .btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
     button { padding: 6px 12px; border: 1px solid #d0d0d0; background: #fff; border-radius: 4px; cursor: pointer; font-size: 13px; }
@@ -142,22 +150,22 @@
     .time-format .copy-btn { padding: 4px 8px; font-size: 11px; flex-shrink: 0; }
     .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #333; color: #fff; padding: 8px 16px; border-radius: 4px; font-size: 13px; z-index: 1000; }
     
-    .content-search { position: fixed; top: 60px; right: 20px; background: #fff; border: 1px solid #e0e0e0; border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); padding: 12px; z-index: 1000; display: none; min-width: 300px; }
+    .content-search { position: fixed; top: 60px; right: 20px; background: rgba(255,255,255,0.95); border: 1px solid #e8e8e8; border-radius: 3px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); padding: 10px; z-index: 1000; display: none; min-width: 280px; }
     .content-search.show { display: block; }
-    .content-search-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-    .content-search-title { font-size: 13px; font-weight: 600; }
-    .content-search-close { background: none; border: none; cursor: pointer; font-size: 18px; color: #999; padding: 0; line-height: 1; }
-    .content-search-close:hover { color: #333; }
-    .content-search-input { display: flex; gap: 8px; margin-bottom: 8px; }
-    .content-search-input input { flex: 1; padding: 6px 10px; border: 1px solid #e0e0e0; border-radius: 4px; font-size: 13px; outline: none; }
-    .content-search-input input:focus { border-color: #999; }
-    .content-search-input button { padding: 6px 10px; border: 1px solid #e0e0e0; background: #fff; border-radius: 4px; cursor: pointer; font-size: 13px; }
-    .content-search-input button:hover { background: #f5f5f5; }
-    .content-search-input button:disabled { opacity: 0.5; cursor: not-allowed; }
-    .content-search-options { display: flex; gap: 12px; font-size: 12px; color: #666; }
-    .content-search-options label { display: flex; align-items: center; gap: 4px; cursor: pointer; }
+    .content-search-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+    .content-search-title { font-size: 12px; font-weight: 500; color: #888; }
+    .content-search-close { background: none; border: none; cursor: pointer; font-size: 16px; color: #bbb; padding: 0; line-height: 1; }
+    .content-search-close:hover { color: #888; }
+    .content-search-input { display: flex; gap: 6px; margin-bottom: 6px; }
+    .content-search-input input { flex: 1; padding: 5px 8px; border: 1px solid #e8e8e8; border-radius: 3px; font-size: 12px; outline: none; background: #fafafa; }
+    .content-search-input input:focus { border-color: #ccc; background: #fff; }
+    .content-search-input button { padding: 5px 8px; border: 1px solid #e8e8e8; background: #fafafa; border-radius: 3px; cursor: pointer; font-size: 12px; color: #666; }
+    .content-search-input button:hover { background: #f0f0f0; }
+    .content-search-input button:disabled { opacity: 0.4; cursor: not-allowed; }
+    .content-search-options { display: flex; gap: 10px; font-size: 11px; color: #888; }
+    .content-search-options label { display: flex; align-items: center; gap: 3px; cursor: pointer; }
     .content-search-options input[type="checkbox"] { margin: 0; }
-    .content-search-info { font-size: 12px; color: #666; margin-top: 8px; }
+    .content-search-info { font-size: 11px; color: #888; margin-top: 6px; }
     .content-search-highlight { background: #ffeb3b; }
     .content-search-highlight.current { background: #ff9800; color: #fff; }
     
@@ -214,12 +222,12 @@
     <div class="grid" id="yamlGrid">
       <div class="panel" id="yamlInputPanel">
         <div class="panel-header">输入</div>
-        <div class="panel-body"><textarea id="yamlInput" placeholder="粘贴 YAML 或 Properties 格式内容..."></textarea></div>
+        <div class="panel-body"><div class="textarea-wrapper"><div class="textarea-highlight" id="yamlInputHighlight"></div><textarea id="yamlInput" placeholder="粘贴 YAML 或 Properties 格式内容..."></textarea></div></div>
       </div>
       <div class="grid-divider" id="yamlGridDivider"></div>
       <div class="panel" id="yamlOutputPanel">
         <div class="panel-header">输出</div>
-        <div class="panel-body"><textarea id="yamlOutput" readonly></textarea></div>
+        <div class="panel-body"><div class="textarea-wrapper"><div class="textarea-highlight" id="yamlOutputHighlight"></div><textarea id="yamlOutput" readonly></textarea></div></div>
       </div>
     </div>
     <div class="btns">
@@ -251,16 +259,18 @@
         <div class="panel-header">
           <span>输入</span>
           <div class="panel-header-actions">
+            <button class="collapse-btn" onclick="openContentSearch(document.getElementById('jsonInput'))" title="搜索 (Ctrl+F)">🔍</button>
             <button class="collapse-btn" onclick="toggleJsonPanel('input')" title="收起输入面板">◀ 收起</button>
           </div>
         </div>
-        <div class="panel-body"><textarea id="jsonInput" placeholder='{"key": "value"}'></textarea></div>
+        <div class="panel-body"><div class="textarea-wrapper"><div class="textarea-highlight" id="jsonInputHighlight"></div><textarea id="jsonInput" placeholder='{"key": "value"}'></textarea></div></div>
       </div>
       <div class="grid-divider" id="jsonGridDivider"></div>
       <div class="panel" id="jsonOutputPanel">
         <div class="panel-header">
           <span>输出</span>
           <div class="panel-header-actions">
+            <button class="collapse-btn" onclick="openJsonEditorSearch()" title="搜索">🔍</button>
             <button class="collapse-btn" onclick="toggleJsonPanel('output')" title="收起输出面板">◀ 收起</button>
           </div>
         </div>
@@ -374,12 +384,12 @@
             </select>
           </div>
         </div>
-        <div class="panel-body"><textarea id="sqlInput" placeholder="输入 SQL 语句..." style="min-height: 300px;"></textarea></div>
+        <div class="panel-body"><div class="textarea-wrapper"><div class="textarea-highlight" id="sqlInputHighlight"></div><textarea id="sqlInput" placeholder="输入 SQL 语句..." style="min-height: 300px;"></textarea></div></div>
       </div>
       <div class="grid-divider" id="sqlGridDivider"></div>
       <div class="panel" id="sqlOutputPanel">
         <div class="panel-header">输出</div>
-        <div class="panel-body"><textarea id="sqlOutput" readonly style="min-height: 300px;"></textarea></div>
+        <div class="panel-body"><div class="textarea-wrapper"><div class="textarea-highlight" id="sqlOutputHighlight"></div><textarea id="sqlOutput" readonly style="min-height: 300px;"></textarea></div></div>
       </div>
     </div>
     
@@ -432,7 +442,7 @@
             <button class="collapse-btn" onclick="loadDiffFile(1)">加载文件</button>
           </div>
         </div>
-        <div class="panel-body"><textarea id="diffInput1" placeholder="粘贴或拖入原始文本..." style="min-height: 300px;"></textarea></div>
+        <div class="panel-body"><div class="textarea-wrapper"><div class="textarea-highlight" id="diffInput1Highlight"></div><textarea id="diffInput1" placeholder="粘贴或拖入原始文本..." style="min-height: 300px;"></textarea></div></div>
       </div>
       <div class="grid-divider" id="diffGridDivider"></div>
       <div class="panel" id="diffInputPanel2">
@@ -442,7 +452,7 @@
             <button class="collapse-btn" onclick="loadDiffFile(2)">加载文件</button>
           </div>
         </div>
-        <div class="panel-body"><textarea id="diffInput2" placeholder="粘贴或拖入修改后文本..." style="min-height: 300px;"></textarea></div>
+        <div class="panel-body"><div class="textarea-wrapper"><div class="textarea-highlight" id="diffInput2Highlight"></div><textarea id="diffInput2" placeholder="粘贴或拖入修改后文本..." style="min-height: 300px;"></textarea></div></div>
       </div>
     </div>
     
@@ -698,6 +708,23 @@
           openContentSearch(textarea);
         }
       });
+
+      const highlightId = textarea.id + 'Highlight';
+      const highlightEl = document.getElementById(highlightId);
+      if (highlightEl) {
+        textarea.addEventListener('scroll', () => {
+          highlightEl.scrollTop = textarea.scrollTop;
+          highlightEl.scrollLeft = textarea.scrollLeft;
+        });
+
+        textarea.addEventListener('input', debounce(() => {
+          if (contentSearchState.textarea === textarea && contentSearchState.lastQuery) {
+            doContentSearch();
+          } else {
+            highlightEl.innerHTML = escapeHtml(textarea.value);
+          }
+        }, 300));
+      }
     });
 
     const searchInput = document.getElementById('contentSearchInput');
@@ -744,6 +771,12 @@
     panel.classList.add('show');
     input.focus();
     input.select();
+
+    const highlightId = textarea.id + 'Highlight';
+    const highlightEl = document.getElementById(highlightId);
+    if (highlightEl) {
+      highlightEl.innerHTML = escapeHtml(textarea.value);
+    }
     
     const selectedText = textarea.value.substring(textarea.selectionStart, textarea.selectionEnd);
     if (selectedText) {
@@ -803,6 +836,8 @@
     contentSearchState.matches = matches;
     contentSearchState.lastQuery = query;
 
+    updateTextareaHighlight();
+
     if (matches.length > 0) {
       contentSearchState.currentIndex = 0;
       scrollToContentMatch(0);
@@ -811,6 +846,37 @@
     }
 
     updateContentSearchInfo(contentSearchState.currentIndex + 1, matches.length);
+  }
+
+  function updateTextareaHighlight() {
+    const textarea = contentSearchState.textarea;
+    if (!textarea) return;
+
+    const highlightId = textarea.id + 'Highlight';
+    const highlightEl = document.getElementById(highlightId);
+    if (!highlightEl) return;
+
+    const text = textarea.value;
+    const matches = contentSearchState.matches;
+    const currentIndex = contentSearchState.currentIndex;
+
+    if (matches.length === 0) {
+      highlightEl.innerHTML = escapeHtml(text);
+      return;
+    }
+
+    let html = '';
+    let lastEnd = 0;
+
+    matches.forEach((match, i) => {
+      html += escapeHtml(text.substring(lastEnd, match.start));
+      const isCurrent = i === currentIndex;
+      html += `<span class="highlight-mark${isCurrent ? ' current' : ''}">${escapeHtml(match.text)}</span>`;
+      lastEnd = match.end;
+    });
+    html += escapeHtml(text.substring(lastEnd));
+
+    highlightEl.innerHTML = html;
   }
 
   function navigateContentSearch(direction) {
@@ -822,6 +888,7 @@
     if (newIndex < 0) newIndex = matches.length - 1;
 
     contentSearchState.currentIndex = newIndex;
+    updateTextareaHighlight();
     scrollToContentMatch(newIndex);
     updateContentSearchInfo(newIndex + 1, matches.length);
   }
@@ -830,9 +897,6 @@
     const textarea = contentSearchState.textarea;
     const match = contentSearchState.matches[index];
     if (!textarea || !match) return;
-
-    textarea.focus();
-    textarea.setSelectionRange(match.start, match.end);
 
     const textBefore = textarea.value.substring(0, match.start);
     const lines = textBefore.split('\n');
@@ -843,6 +907,14 @@
   }
 
   function clearContentSearchHighlights() {
+    const textarea = contentSearchState.textarea;
+    if (textarea) {
+      const highlightId = textarea.id + 'Highlight';
+      const highlightEl = document.getElementById(highlightId);
+      if (highlightEl) {
+        highlightEl.innerHTML = escapeHtml(textarea.value);
+      }
+    }
   }
 
   function updateContentSearchInfo(current, total, error) {
@@ -1070,6 +1142,19 @@
       modes: ['tree', 'code'],
       onError: err => showError('jsonError', err.toString())
     });
+  }
+
+  function openJsonEditorSearch() {
+    if (jsonEditor) {
+      jsonEditor.setMode('tree');
+      setTimeout(() => {
+        const searchInput = document.querySelector('#jsonEditor .jsoneditor-search input');
+        if (searchInput) {
+          searchInput.focus();
+          searchInput.select();
+        }
+      }, 100);
+    }
   }
 
   function showError(id, msg) {
