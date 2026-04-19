@@ -20,16 +20,6 @@
     
     .tools-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; flex: 1; }
     
-    .search-box { position: relative; width: 240px; flex-shrink: 0; }
-    .search-input { width: 100%; padding: 6px 12px 6px 32px; border: 1px solid #e0e0e0; border-radius: 4px; font-size: 13px; outline: none; }
-    .search-input:focus { border-color: #999; }
-    .search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #999; font-size: 14px; pointer-events: none; }
-    .search-results { position: absolute; top: 100%; left: 0; right: 0; background: #fff; border: 1px solid #e0e0e0; border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-height: 300px; overflow-y: auto; display: none; z-index: 200; margin-top: 4px; }
-    .search-results.show { display: block; }
-    .search-result-item { padding: 8px 12px; cursor: pointer; font-size: 13px; border-bottom: 1px solid #f0f0f0; }
-    .search-result-item:last-child { border-bottom: none; }
-    .search-result-item:hover { background: #f5f5f5; }
-    .search-result-item .highlight { background: #ffeb3b; padding: 0 2px; border-radius: 2px; }
     .tool-btn { padding: 6px 14px; border: 1px solid #e0e0e0; background: #fff; border-radius: 4px; cursor: pointer; font-size: 13px; color: #333; text-decoration: none; }
     .tool-btn:hover { background: #f5f5f5; }
     .tool-btn.active { background: #333; color: #fff; border-color: #333; }
@@ -67,9 +57,11 @@
     .grid-divider.dragging::after { background: #333; }
     @media (max-width: 768px) { .grid { grid-template-columns: 1fr; } .grid-divider { display: none; } }
     
-    .panel { border: 1px solid #e0e0e0; border-radius: 4px; display: flex; flex-direction: column; min-height: 200px; resize: vertical; overflow: hidden; }
+    .panel { position: relative; border: 1px solid #e0e0e0; border-radius: 4px; display: flex; flex-direction: column; min-height: 200px; resize: vertical; overflow: hidden; }
     .panel.collapsed { display: none; }
     .panel-header { padding: 8px 12px; border-bottom: 1px solid #e0e0e0; font-size: 13px; color: #666; background: #fafafa; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+    .panel-header-sticky { position: absolute; top: 0; left: 0; right: 0; z-index: 10; padding: 8px 12px; border-bottom: 1px solid #e0e0e0; font-size: 13px; color: #666; background: #fafafa; display: none; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    .panel-header-sticky.show { display: flex; }
     .panel-header-actions { display: flex; align-items: center; gap: 8px; }
     .collapse-btn { background: none; border: none; cursor: pointer; font-size: 12px; color: #666; padding: 2px 6px; border-radius: 3px; }
     .collapse-btn:hover { background: #e0e0e0; }
@@ -90,6 +82,10 @@
     .textarea-highlight .highlight-mark { background: rgba(255, 235, 59, 0.4); border-radius: 2px; }
     .textarea-highlight .highlight-mark.current { background: rgba(255, 152, 0, 0.5); }
     
+    .floating-search-btn { position: absolute; top: 4px; right: 4px; z-index: 20; background: rgba(250, 250, 250, 0.95); border: 1px solid #e0e0e0; border-radius: 4px; padding: 4px 8px; cursor: pointer; font-size: 12px; display: none; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    .floating-search-btn:hover { background: #f0f0f0; }
+    .floating-search-btn.show { display: block; }
+    
     .btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
     button { padding: 6px 12px; border: 1px solid #d0d0d0; background: #fff; border-radius: 4px; cursor: pointer; font-size: 13px; }
     button:hover { background: #f5f5f5; }
@@ -101,9 +97,11 @@
     .error { color: #c00; font-size: 13px; margin-top: 8px; padding: 8px 12px; background: #fff5f5; border: 1px solid #fcc; border-radius: 4px; display: none; }
     .error.show { display: block; }
     
-    .json-editor-container { flex: 1; min-height: 200px; }
+    .json-editor-container { flex: 0 0 auto; height: 500px; max-height: 60vh; overflow: hidden; }
     .jsoneditor { border: none !important; height: 100% !important; }
-    .jsoneditor-outer { height: 100% !important; }
+    .jsoneditor-outer { height: 100% !important; overflow: hidden; }
+    .jsoneditor-tree { height: 100% !important; overflow: auto !important; }
+    .jsoneditor-frame { position: sticky !important; top: 0 !important; z-index: 10 !important; background: #fff !important; }
     
     .snapshots { margin-top: 16px; border: 1px solid #e0e0e0; border-radius: 4px; }
     .snapshots-header { padding: 8px 12px; border-bottom: 1px solid #e0e0e0; font-size: 13px; display: flex; justify-content: space-between; align-items: center; background: #fafafa; }
@@ -204,11 +202,6 @@
 <div class="header">
   <div class="header-inner">
     <div class="tools-bar" id="toolsBar"></div>
-    <div class="search-box">
-      <span class="search-icon">🔍</span>
-      <input type="text" class="search-input" id="toolSearch" placeholder="搜索工具... (Ctrl+K)" autocomplete="off">
-      <div class="search-results" id="searchResults"></div>
-    </div>
   </div>
 </div>
 
@@ -256,6 +249,13 @@
     
     <div class="grid" id="jsonGrid">
       <div class="panel" id="jsonInputPanel">
+        <div class="panel-header-sticky" id="jsonInputStickyHeader">
+          <span>输入</span>
+          <div class="panel-header-actions">
+            <button class="collapse-btn" onclick="openContentSearch(document.getElementById('jsonInput'))" title="搜索 (Ctrl+F)">🔍</button>
+            <button class="collapse-btn" onclick="toggleJsonPanel('input')" title="收起输入面板">◀ 收起</button>
+          </div>
+        </div>
         <div class="panel-header">
           <span>输入</span>
           <div class="panel-header-actions">
@@ -263,18 +263,23 @@
             <button class="collapse-btn" onclick="toggleJsonPanel('input')" title="收起输入面板">◀ 收起</button>
           </div>
         </div>
-        <div class="panel-body"><div class="textarea-wrapper"><div class="textarea-highlight" id="jsonInputHighlight"></div><textarea id="jsonInput" placeholder='{"key": "value"}'></textarea></div></div>
+        <div class="panel-body"><div class="textarea-wrapper"><div class="textarea-highlight" id="jsonInputHighlight"></div><textarea id="jsonInput" placeholder='{"key": "value"}'></textarea><button class="floating-search-btn" id="jsonInputFloatingSearch" onclick="openContentSearch(document.getElementById('jsonInput'))">🔍 搜索</button></div></div>
       </div>
       <div class="grid-divider" id="jsonGridDivider"></div>
       <div class="panel" id="jsonOutputPanel">
-        <div class="panel-header">
+        <div class="panel-header-sticky" id="jsonOutputStickyHeader">
           <span>输出</span>
           <div class="panel-header-actions">
-            <button class="collapse-btn" onclick="openJsonEditorSearch()" title="搜索">🔍</button>
             <button class="collapse-btn" onclick="toggleJsonPanel('output')" title="收起输出面板">◀ 收起</button>
           </div>
         </div>
-        <div class="panel-body">
+        <div class="panel-header">
+          <span>输出</span>
+          <div class="panel-header-actions">
+            <button class="collapse-btn" onclick="toggleJsonPanel('output')" title="收起输出面板">◀ 收起</button>
+          </div>
+        </div>
+        <div class="panel-body" style="position: relative;">
           <div id="jsonEditor" class="json-editor-container"></div>
         </div>
       </div>
@@ -596,107 +601,9 @@
     renderSqlSnapshots();
     initTimestamp();
     initDragDrop();
-    initToolSearch();
     initContentSearch();
     document.getElementById('jsonInput').addEventListener('input', debounce(autoFormat, 300));
     initUndoRedo();
-  }
-
-  function initToolSearch() {
-    const searchInput = document.getElementById('toolSearch');
-    const searchResults = document.getElementById('searchResults');
-    let selectedIndex = -1;
-
-    searchInput.addEventListener('input', (e) => {
-      const query = e.target.value.trim().toLowerCase();
-      if (!query) {
-        searchResults.classList.remove('show');
-        return;
-      }
-
-      const results = tools.filter(t => 
-        t.name.toLowerCase().includes(query) || 
-        t.category.toLowerCase().includes(query) ||
-        t.id.toLowerCase().includes(query)
-      );
-
-      if (results.length === 0) {
-        searchResults.innerHTML = '<div class="search-result-item" style="color: #999;">未找到相关工具</div>';
-        searchResults.classList.add('show');
-        return;
-      }
-
-      searchResults.innerHTML = results.map((t, i) => {
-        const name = t.name.replace(new RegExp(`(${query})`, 'gi'), '<span class="highlight">$1</span>');
-        return `<div class="search-result-item" data-tool="${t.id}" data-index="${i}">
-          <div><strong>${name}</strong></div>
-          <div style="font-size: 11px; color: #999; margin-top: 2px;">${t.category}</div>
-        </div>`;
-      }).join('');
-      
-      searchResults.classList.add('show');
-      selectedIndex = -1;
-    });
-
-    searchInput.addEventListener('keydown', (e) => {
-      const items = searchResults.querySelectorAll('.search-result-item');
-      if (!items.length) return;
-
-      if (e.key === 'ArrowDown') {
-        e.preventDefault();
-        selectedIndex = Math.min(selectedIndex + 1, items.length - 1);
-        updateSelection(items);
-      } else if (e.key === 'ArrowUp') {
-        e.preventDefault();
-        selectedIndex = Math.max(selectedIndex - 1, 0);
-        updateSelection(items);
-      } else if (e.key === 'Enter') {
-        e.preventDefault();
-        if (selectedIndex >= 0 && items[selectedIndex]) {
-          const toolId = items[selectedIndex].dataset.tool;
-          selectTool(toolId);
-        } else if (items.length === 1) {
-          const toolId = items[0].dataset.tool;
-          selectTool(toolId);
-        }
-      } else if (e.key === 'Escape') {
-        searchResults.classList.remove('show');
-        searchInput.blur();
-      }
-    });
-
-    function updateSelection(items) {
-      items.forEach((item, i) => {
-        item.style.background = i === selectedIndex ? '#f0f0f0' : '';
-      });
-    }
-
-    searchResults.addEventListener('click', (e) => {
-      const item = e.target.closest('.search-result-item');
-      if (item && item.dataset.tool) {
-        selectTool(item.dataset.tool);
-      }
-    });
-
-    function selectTool(toolId) {
-      location.hash = toolId;
-      searchInput.value = '';
-      searchResults.classList.remove('show');
-    }
-
-    document.addEventListener('click', (e) => {
-      if (!e.target.closest('.search-box')) {
-        searchResults.classList.remove('show');
-      }
-    });
-
-    document.addEventListener('keydown', (e) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-        e.preventDefault();
-        searchInput.focus();
-        searchInput.select();
-      }
-    });
   }
 
   function initContentSearch() {
@@ -711,10 +618,32 @@
 
       const highlightId = textarea.id + 'Highlight';
       const highlightEl = document.getElementById(highlightId);
+      const floatingBtnId = textarea.id + 'FloatingSearch';
+      const floatingBtn = document.getElementById(floatingBtnId);
+
+      const panel = textarea.closest('.panel');
+      const stickyHeader = panel ? panel.querySelector('.panel-header-sticky') : null;
+
       if (highlightEl) {
         textarea.addEventListener('scroll', () => {
           highlightEl.scrollTop = textarea.scrollTop;
           highlightEl.scrollLeft = textarea.scrollLeft;
+
+          if (floatingBtn) {
+            if (textarea.scrollTop > 30) {
+              floatingBtn.classList.add('show');
+            } else {
+              floatingBtn.classList.remove('show');
+            }
+          }
+
+          if (stickyHeader) {
+            if (textarea.scrollTop > 30) {
+              stickyHeader.classList.add('show');
+            } else {
+              stickyHeader.classList.remove('show');
+            }
+          }
         });
 
         textarea.addEventListener('input', debounce(() => {
@@ -901,9 +830,22 @@
     const textBefore = textarea.value.substring(0, match.start);
     const lines = textBefore.split('\n');
     const lineNumber = lines.length;
-    const lineHeight = parseInt(getComputedStyle(textarea).lineHeight) || 18;
-    const scrollTop = (lineNumber - 5) * lineHeight;
-    textarea.scrollTop = Math.max(0, scrollTop);
+
+    const computedStyle = getComputedStyle(textarea);
+    const lineHeight = parseFloat(computedStyle.lineHeight) || 18;
+    const paddingTop = parseFloat(computedStyle.paddingTop) || 0;
+    const borderTop = parseFloat(computedStyle.borderTopWidth) || 0;
+
+    const targetLineTop = (lineNumber - 1) * lineHeight;
+    const visibleHeight = textarea.clientHeight;
+    const currentScrollTop = textarea.scrollTop;
+
+    const lineTopInViewport = targetLineTop - currentScrollTop;
+    const idealTop = paddingTop + lineHeight * 3;
+
+    if (lineTopInViewport < idealTop || lineTopInViewport > visibleHeight - lineHeight * 2) {
+      textarea.scrollTop = Math.max(0, targetLineTop - idealTop + paddingTop + borderTop);
+    }
   }
 
   function clearContentSearchHighlights() {
@@ -1142,19 +1084,44 @@
       modes: ['tree', 'code'],
       onError: err => showError('jsonError', err.toString())
     });
-  }
 
-  function openJsonEditorSearch() {
-    if (jsonEditor) {
-      jsonEditor.setMode('tree');
-      setTimeout(() => {
-        const searchInput = document.querySelector('#jsonEditor .jsoneditor-search input');
-        if (searchInput) {
-          searchInput.focus();
-          searchInput.select();
-        }
-      }, 100);
-    }
+    setTimeout(() => {
+      const stickyHeader = document.getElementById('jsonOutputStickyHeader');
+      const treeEl = container.querySelector('.jsoneditor-tree');
+      
+      if (treeEl) {
+        treeEl.addEventListener('scroll', () => {
+          if (stickyHeader) {
+            stickyHeader.classList.toggle('show', treeEl.scrollTop > 30);
+          }
+        });
+
+        let lastHighlighted = null;
+        let isScrolling = false;
+        const observer = new MutationObserver(() => {
+          if (isScrolling) return;
+          const highlighted = container.querySelector('.jsoneditor-highlight');
+          if (highlighted && highlighted !== lastHighlighted) {
+            lastHighlighted = highlighted;
+            isScrolling = true;
+            setTimeout(() => {
+              const treeRect = treeEl.getBoundingClientRect();
+              const elemRect = highlighted.getBoundingClientRect();
+              const scrollTop = treeEl.scrollTop + elemRect.top - treeRect.top - treeRect.height / 2 + elemRect.height / 2;
+              treeEl.scrollTop = Math.max(0, scrollTop);
+              setTimeout(() => { isScrolling = false; }, 300);
+            }, 50);
+          }
+        });
+        
+        observer.observe(container, {
+          childList: true,
+          subtree: true,
+          attributes: true,
+          attributeFilter: ['class']
+        });
+      }
+    }, 200);
   }
 
   function showError(id, msg) {
